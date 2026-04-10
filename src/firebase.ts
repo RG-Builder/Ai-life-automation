@@ -1,47 +1,59 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import { initializeFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 import { getAnalytics, isSupported } from 'firebase/analytics';
-import firebaseConfig from '../firebase-applet-config.json';
 
+// Use environment variables instead of JSON file
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ||
+         process.env.FIREBASE_API_KEY ||
+         "AIzaSyAavRxJ7HZUR8d0QQ0V6qUWmvGiSa-1ueY",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ||
+              process.env.FIREBASE_AUTH_DOMAIN ||
+              "gen-lang-client-0335857006.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ||
+             process.env.FIREBASE_PROJECT_ID ||
+             "gen-lang-client-0335857006",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID ||
+         process.env.FIREBASE_APP_ID ||
+         "1:1024422333401:web:8f2bdc06340b24d5fde7c8",
+  databaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID ||
+              process.env.FIREBASE_DATABASE_ID ||
+              "ai-studio-081e94ee-3f0c-4e02-8c9b-0200c6b3c314",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ||
+                 process.env.FIREBASE_STORAGE_BUCKET ||
+                 "gen-lang-client-0335857006.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ||
+                     process.env.FIREBASE_MESSAGING_SENDER_ID ||
+                     "1024422333401",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID ||
+                 process.env.FIREBASE_MEASUREMENT_ID ||
+                 "G-YYS0PCT8QN",
+};
+
+console.log("🔥 Firebase initializing...");
 const app = initializeApp(firebaseConfig);
-console.log("Firebase Client initialized for project:", firebaseConfig.projectId);
+console.log("✅ Firebase initialized");
+
 export const firebaseConfigExport = firebaseConfig;
 export const auth = getAuth(app);
 
-// Set persistence explicitly to browserLocalPersistence
 setPersistence(auth, browserLocalPersistence).catch(err => {
-  console.error("Auth persistence error:", err);
+  console.error("⚠️ Auth persistence error:", err);
 });
 
-// Initialize Analytics conditionally (only if supported in the environment)
-export const analytics = typeof window !== 'undefined' ? isSupported().then(yes => yes ? getAnalytics(app) : null) : null;
+export const analytics = typeof window !== 'undefined'
+  ? isSupported().then(yes => yes ? getAnalytics(app) : null)
+  : null;
 
-export const logEvent = async (eventName: string, eventParams?: any) => {
-  const a = await analytics;
-  if (a) {
-    const { logEvent: firebaseLogEvent } = await import('firebase/analytics');
-    firebaseLogEvent(a, eventName, eventParams);
-  }
-};
-
-// Use initializeFirestore with experimentalForceLongPolling to bypass potential WebSocket issues
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-}, firebaseConfig.firestoreDatabaseId);
-
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-    console.log("Firestore connection test successful.");
-  } catch (error) {
-    if(error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration. Firestore connection failed: client is offline.");
-    }
-    // Skip logging for other errors, as this is simply a connection test.
-  }
-}
-testConnection();
+// Initialize Firestore without experimental flags
+export const db = initializeFirestore(
+  app,
+  {
+    cacheSizeBytes: 10485760,
+  },
+  firebaseConfig.databaseId
+);
 
 export const googleProvider = new GoogleAuthProvider();
 
@@ -64,12 +76,12 @@ interface FirestoreErrorInfo {
     emailVerified: boolean | undefined;
     isAnonymous: boolean | undefined;
     tenantId: string | null | undefined;
-    providerInfo: {
+    providerInfo: Array<{
       providerId: string;
       displayName: string | null;
       email: string | null;
       photoUrl: string | null;
-    }[];
+    }>;
   }
 }
 
@@ -92,7 +104,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  console.error('❌ Firestore Error:', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }
 

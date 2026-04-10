@@ -1,88 +1,47 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: users
+// Document ID: {userId}
+// Fields:
+//   - firebase_uid: string (required)
+//   - email: string (required, email format)
+//   - subscription_plan: string (enum: ['free', 'trial', 'premium'])
+//   - role: string (enum: ['admin', 'user'])
+//   - trial_used: number
+//   - created_at: timestamp
+//
+// Collection: tasks
+// Document ID: {taskId}
+// Fields:
+//   - user_id: string (required)
+//   - title: string (required)
+//   - importance: number
+//   - urgency_score: number
+//   - estimated_effort: number
+//   - impact_level: number
+//   - duration: number
+//   - status: string (enum: ['pending', 'completed', 'overdue'])
+//   - is_habit: bool
+//   - streak: number
+//   - deadline: timestamp
+//   - category: string
+//   - completed_at: timestamp
+//   - created_at: timestamp
+//
+// [Other collections follow similar patterns scoped by user_id]
+//
+// ===============================================================
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    //
-    // Collection: users
-    // Document ID: {userId} (Firebase UID)
-    // Fields:
-    //   - firebase_uid: string (required)
-    //   - email: string (required, email format)
-    //   - subscription_plan: string (trial, premium)
-    //   - role: string (admin, user)
-    //   - trial_used: int
-    //   - created_at: timestamp
-    //
-    // Collection: users/{userId}/tasks
-    // Document ID: {taskId}
-    // Fields:
-    //   - user_id: string (required, matches parent userId)
-    //   - title: string (required, max 200 chars)
-    //   - importance: int (1-10)
-    //   - urgency_score: int (1-10)
-    //   - estimated_effort: int (1-10)
-    //   - impact_level: int (1-10)
-    //   - duration: int (positive)
-    //   - status: string (pending, completed, overdue)
-    //   - is_habit: bool
-    //   - streak: int
-    //   - deadline: timestamp
-    //   - category: string
-    //   - completed_at: timestamp
-    //   - created_at: timestamp
-    //
-    // Collection: users/{userId}/habits
-    // Document ID: {habitId}
-    // Fields:
-    //   - user_id: string
-    //   - title: string
-    //   - description: string
-    //   - frequency: string (daily, weekly)
-    //   - goal_count: int
-    //   - current_count: int
-    //   - streak: int
-    //   - last_completed_at: timestamp
-    //   - created_at: timestamp
-    //
-    // Collection: users/{userId}/goals
-    // Document ID: {goalId}
-    // Fields:
-    //   - user_id: string
-    //   - title: string
-    //   - description: string
-    //   - type: string (short-term, long-term)
-    //   - status: string (active, achieved, paused)
-    //   - target_date: timestamp
-    //   - created_at: timestamp
-    //
-    // Collection: users/{userId}/focus_sessions
-    // Document ID: {sessionId}
-    // Fields:
-    //   - user_id: string
-    //   - task_id: string
-    //   - start_time: timestamp
-    //   - end_time: timestamp
-    //   - duration_minutes: int
-    //   - distractions_count: int
-    //   - efficiency_score: int
-    //
-    // Collection: users/{userId}/ai_insights
-    // Document ID: {insightId}
-    // Fields:
-    //   - user_id: string
-    //   - insight_text: string
-    //   - type: string
-    //   - is_read: bool
-    //   - created_at: timestamp
-    //
-    // ===============================================================
 
     // ===============================================================
     // Helper Functions
     // ===============================================================
-    
+
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -93,26 +52,12 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() &&
-        (request.auth.token.email == "realprouser1234@gmail.com" && request.auth.token.email_verified == true ||
-         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
-    }
-
-    function hasRequiredFields(fields) {
-      return request.resource.data.keys().hasAll(fields);
-    }
-
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "realprouser1234@gmail.com" && request.auth.token.email_verified == true));
     }
 
     function isValidEmail(email) {
       return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
-    }
-
-    function isValidString(field, min, max) {
-      return request.resource.data[field] is string && 
-             request.resource.data[field].size() >= min && 
-             request.resource.data[field].size() <= max;
     }
 
     // ===============================================================
@@ -120,38 +65,20 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUser(data) {
-      return hasRequiredFields(['firebase_uid', 'email']) &&
-             data.firebase_uid == request.auth.uid &&
+      return data.keys().hasAll(['firebase_uid', 'email']) &&
+             data.firebase_uid is string &&
              isValidEmail(data.email) &&
              (!('role' in data) || data.role in ['admin', 'user']) &&
              (!('subscription_plan' in data) || data.subscription_plan in ['free', 'trial', 'premium']);
     }
 
-    function isValidTask(data, userId) {
-      return hasRequiredFields(['user_id', 'title']) &&
-             data.user_id == userId &&
-             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
-             (!('status' in data) || data.status in ['pending', 'completed', 'overdue']) &&
-             (!('importance' in data) || (data.importance is number && data.importance >= 1 && data.importance <= 10)) &&
-             (!('urgency_score' in data) || (data.urgency_score is number && data.urgency_score >= 1 && data.urgency_score <= 10)) &&
-             (!('estimated_effort' in data) || (data.estimated_effort is number && data.estimated_effort >= 1 && data.estimated_effort <= 10)) &&
-             (!('impact_level' in data) || (data.impact_level is number && data.impact_level >= 1 && data.impact_level <= 10)) &&
-             (!('duration' in data) || (data.duration is number && data.duration >= 0));
-    }
-
-    function isValidHabit(data, userId) {
-      return hasRequiredFields(['user_id', 'title']) &&
-             data.user_id == userId &&
-             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
-             (!('frequency' in data) || data.frequency in ['daily', 'weekly']) &&
-             (!('goal_count' in data) || (data.goal_count is number && data.goal_count >= 1)) &&
-             (!('current_count' in data) || (data.current_count is number && data.current_count >= 0)) &&
-             (!('streak' in data) || (data.streak is number && data.streak >= 0));
-    }
+    // ===============================================================
+    // Rules
+    // ===============================================================
 
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow create: if isAuthenticated() && request.auth.uid == userId && isValidUser(request.resource.data);
       allow update: if (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role) || isAdmin();
 
       match /tasks/{taskId} {
@@ -163,43 +90,33 @@ service cloud.firestore {
       }
 
       match /goals/{goalId} {
-        allow read: if isOwner(userId) || isAdmin();
-        allow create, update: if isOwner(userId);
-        allow delete: if isOwner(userId) || isAdmin();
+        allow read, write: if isOwner(userId) || isAdmin();
       }
 
       match /focus_sessions/{sessionId} {
-        allow read: if isOwner(userId) || isAdmin();
-        allow create: if isOwner(userId);
-        allow delete: if isOwner(userId) || isAdmin();
+        allow read, write: if isOwner(userId) || isAdmin();
       }
 
       match /ai_insights/{insightId} {
-        allow read: if isOwner(userId) || isAdmin();
-        allow create: if isAdmin(); // Only AI/Admin should create insights
-        allow update: if isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read']);
-        allow delete: if isOwner(userId) || isAdmin();
+        allow read, write: if isOwner(userId) || isAdmin();
       }
 
       match /motivation/state {
-        allow read: if isOwner(userId) || isAdmin();
-        allow write: if isOwner(userId) || isAdmin();
+        allow read, write: if isOwner(userId) || isAdmin();
       }
 
       match /daily_scores/{scoreId} {
-        allow read: if isOwner(userId) || isAdmin();
-        allow write: if isOwner(userId) || isAdmin();
+        allow read, write: if isOwner(userId) || isAdmin();
       }
 
       match /reminder_logs/{logId} {
-        allow read: if isOwner(userId) || isAdmin();
-        allow create: if isAdmin(); // Only system/admin sends reminders
-        allow update: if isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['responded_at', 'action_taken']);
+        allow read, write: if isOwner(userId) || isAdmin();
       }
     }
 
-    match /test/connection {
-      allow read: if true;
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
