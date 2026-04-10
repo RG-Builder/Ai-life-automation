@@ -97,13 +97,103 @@ service cloud.firestore {
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
 
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidString(field, min, max) {
+      return request.resource.data[field] is string && 
+             request.resource.data[field].size() >= min && 
+             request.resource.data[field].size() <= max;
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasRequiredFields(['firebase_uid', 'email']) &&
+             data.firebase_uid == request.auth.uid &&
+             isValidEmail(data.email) &&
+             (!('role' in data) || data.role in ['admin', 'user']) &&
+             (!('subscription_plan' in data) || data.subscription_plan in ['trial', 'premium']);
+    }
+
+    function isValidTask(data, userId) {
+      return hasRequiredFields(['user_id', 'title']) &&
+             data.user_id == userId &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             (!('status' in data) || data.status in ['pending', 'completed', 'overdue']) &&
+             (!('importance' in data) || (data.importance is int && data.importance >= 1 && data.importance <= 10));
+    }
+
+    function isValidHabit(data, userId) {
+      return hasRequiredFields(['user_id', 'title']) &&
+             data.user_id == userId &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             (!('frequency' in data) || data.frequency in ['daily', 'weekly']);
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) || isAdmin();
-      
-      match /{allSubcollections=**} {
-        allow read, write: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role) || isAdmin();
+
+      match /tasks/{taskId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidTask(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidTask(request.resource.data, userId);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /habits/{habitId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidHabit(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidHabit(request.resource.data, userId);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /goals/{goalId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create, update: if isOwner(userId);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /focus_sessions/{sessionId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /ai_insights/{insightId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isAdmin(); // Only AI/Admin should create insights
+        allow update: if isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read']);
+        allow delete: if isOwner(userId) || isAdmin();
+      }
+
+      match /motivation/state {
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if isOwner(userId) || isAdmin();
+      }
+
+      match /daily_scores/{scoreId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if isOwner(userId) || isAdmin();
+      }
+
+      match /reminder_logs/{logId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isAdmin(); // Only system/admin sends reminders
+        allow update: if isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['responded_at', 'action_taken']);
       }
     }
 
