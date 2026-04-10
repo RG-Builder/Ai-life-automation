@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+firebase-*.json
+firebase-blueprint.json
+google-services.json
