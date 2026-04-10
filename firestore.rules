@@ -112,6 +112,19 @@ service cloud.firestore {
       match /reminder_logs/{logId} {
         allow read, write: if isOwner(userId) || isAdmin();
       }
+
+      match /payments/{paymentId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+
+      match /usage_logs/{logId} {
+        allow read, write: if isOwner(userId) || isAdmin();
+      }
+    }
+
+    match /ai_cache/{cacheId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
     }
 
     // Default deny

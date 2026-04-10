@@ -1,7 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { initializeFirestore } from 'firebase/firestore';
-import { getAnalytics, isSupported } from 'firebase/analytics';
 
 // Use environment variables instead of JSON file
 const firebaseConfig = {
@@ -42,9 +41,9 @@ setPersistence(auth, browserLocalPersistence).catch(err => {
   console.error("⚠️ Auth persistence error:", err);
 });
 
-export const analytics = typeof window !== 'undefined'
-  ? isSupported().then(yes => yes ? getAnalytics(app) : null)
-  : null;
+// Analytics is disabled to prevent 403 Permission Denied errors from the Installations API
+// which often happens in sandboxed environments or when the API is not enabled in the project.
+export const analytics = null;
 
 // Initialize Firestore without experimental flags
 export const db = initializeFirestore(
