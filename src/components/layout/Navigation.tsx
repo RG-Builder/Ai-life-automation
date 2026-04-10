@@ -1,13 +1,14 @@
 import React from 'react';
 import { LayoutDashboard, Target, Dumbbell, Clock, Brain, Settings } from 'lucide-react';
+import { useTheme } from '../../theme';
 
 interface NavigationProps {
   activeTab: string;
   setActiveTab: (tab: any) => void;
-  theme: any;
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab, theme }) => {
+export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
+  const { theme } = useTheme();
   const navItems = [
     { id: 'home', icon: LayoutDashboard, label: theme.wording.dashboard.split(' ')[0] },
     { id: 'tasks', icon: Target, label: theme.wording.missions.split(' ')[0] },

@@ -1,17 +1,17 @@
 import React from 'react';
-import { Sparkles, Brain, Settings } from 'lucide-react';
-import { User } from '../../types';
+import { Sparkles, Brain, Bell } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 interface HeaderProps {
-  user: User | null;
-  showAiPanel: boolean;
-  setShowAiPanel: (show: boolean) => void;
-  setActiveTab: (tab: any) => void;
+  onAiClick: () => void;
+  onNotificationsClick: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ user, showAiPanel, setShowAiPanel, setActiveTab }) => {
+export const Header: React.FC<HeaderProps> = ({ onAiClick, onNotificationsClick }) => {
+  const { user } = useAuth();
+  
   return (
-    <header className={`flex items-center justify-between p-4 md:p-6 max-w-6xl mx-auto sticky top-0 z-40 backdrop-blur-2xl border-b w-full bg-background/80 border-border`}>
+    <header className={`flex items-center justify-between p-4 md:p-6 max-w-7xl mx-auto fixed top-0 left-0 right-0 z-40 backdrop-blur-2xl border-b w-full bg-background/80 border-border`}>
       <div className="flex items-center gap-2 md:gap-3">
         <div className="size-8 md:size-10 rounded-lg md:rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
           <Sparkles className="text-black md:hidden" size={16} />
@@ -24,20 +24,19 @@ export const Header: React.FC<HeaderProps> = ({ user, showAiPanel, setShowAiPane
       </div>
       <div className="flex gap-3 md:gap-4 items-center">
         <button 
-          onClick={() => setShowAiPanel(!showAiPanel)}
+          onClick={onNotificationsClick}
+          className={`size-8 md:size-10 flex items-center justify-center rounded-lg md:rounded-xl border transition-all relative bg-surface border-border text-text_secondary hover:text-text_primary`}
+        >
+          <Bell size={18} className="md:hidden" />
+          <Bell size={20} className="hidden md:block" />
+        </button>
+        <button 
+          onClick={onAiClick}
           className={`size-8 md:size-10 flex items-center justify-center rounded-lg md:rounded-xl border transition-all relative bg-surface border-border text-text_secondary hover:text-text_primary`}
         >
           <Brain size={18} className="md:hidden" />
           <Brain size={20} className="hidden md:block" />
           <span className={`absolute top-2 right-2 md:top-2.5 md:right-2.5 size-1.5 md:size-2 bg-primary rounded-full`}></span>
-        </button>
-        <button 
-          onClick={() => setActiveTab('settings')}
-          className={`size-8 md:size-10 flex items-center justify-center rounded-lg md:rounded-xl border transition-all bg-surface border-border text-text_secondary hover:text-text_primary`}
-          title="Settings"
-        >
-          <Settings size={18} className="md:hidden" />
-          <Settings size={20} className="hidden md:block" />
         </button>
       </div>
     </header>

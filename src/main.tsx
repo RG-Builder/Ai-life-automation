@@ -5,12 +5,19 @@ import ErrorBoundary from './components/ErrorBoundary.tsx';
 import { ThemeProvider } from './theme';
 import './index.css';
 
+import { AuthProvider } from './context/AuthContext';
+import { AppProvider } from './context/AppContext';
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
-      <ErrorBoundary>
-        <App />
-      </ErrorBoundary>
+      <AuthProvider>
+        <AppProvider>
+          <ErrorBoundary>
+            <App />
+          </ErrorBoundary>
+        </AppProvider>
+      </AuthProvider>
     </ThemeProvider>
   </StrictMode>,
 );

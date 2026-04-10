@@ -51,6 +51,7 @@ export interface Habit {
   goal_count: number;
   current_count: number;
   streak: number;
+  category?: string;
   last_completed_at?: string;
   created_at?: any;
 }

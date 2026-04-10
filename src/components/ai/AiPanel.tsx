@@ -3,22 +3,17 @@ import { motion } from 'framer-motion';
 import { Brain, X, Sparkles, ArrowRight } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { Mission, Habit, User } from '../../types';
+import { useAppContext } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 
 interface AiPanelProps {
-  missions: Mission[];
-  consistencySystem: Habit[];
-  userProfile: User | null;
-  setShowAiPanel: (show: boolean) => void;
-  MODEL_NAME: string;
+  onClose: () => void;
 }
 
-export const AiPanel: React.FC<AiPanelProps> = ({
-  missions,
-  consistencySystem,
-  userProfile,
-  setShowAiPanel,
-  MODEL_NAME
-}) => {
+export const AiPanel: React.FC<AiPanelProps> = ({ onClose }) => {
+  const { missions, habits, userProfile } = useAppContext();
+  const { user } = useAuth();
+  const MODEL_NAME = "gemini-3-flash-preview";
   const [query, setQuery] = useState('');
   const [chat, setChat] = useState<{ role: 'user' | 'ai', text: string }[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -34,7 +29,7 @@ export const AiPanel: React.FC<AiPanelProps> = ({
       const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
       const response = await genAI.models.generateContent({
         model: MODEL_NAME,
-        contents: `User Query: ${userMsg}\nContext: ${JSON.stringify({ missions, consistencySystem, userProfile })}\nAs an AI Life Architect, provide a concise, high-impact response.`,
+        contents: `User Query: ${userMsg}\nContext: ${JSON.stringify({ missions, habits, userProfile })}\nAs an AI Life Architect, provide a concise, high-impact response.`,
       });
       
       setChat(prev => [...prev, { role: 'ai', text: response.text || "I'm processing your request." }]);
@@ -63,7 +58,7 @@ export const AiPanel: React.FC<AiPanelProps> = ({
             <p className="text-[10px] font-black uppercase tracking-widest text-primary">Neural Sync Active</p>
           </div>
         </div>
-        <button onClick={() => setShowAiPanel(false)} className="text-text_secondary hover:text-text_primary">
+        <button onClick={onClose} className="text-text_secondary hover:text-text_primary">
           <X size={24} />
         </button>
       </div>

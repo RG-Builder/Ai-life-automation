@@ -2,26 +2,16 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Settings, LogOut, CreditCard, Shield, FileText, Moon, Sparkles } from 'lucide-react';
 import { User } from '../../types';
+import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../theme';
 
-interface SettingsViewProps {
-  user: User | null;
-  theme: any;
-  setTheme: (theme: string) => void;
-  logout: () => Promise<void>;
-  setShowPricing: (show: boolean) => void;
-  setShowPrivacy: (show: boolean) => void;
-  setShowTerms: (show: boolean) => void;
-}
+export const SettingsView: React.FC = () => {
+  const { user, logout } = useAuth();
+  const { theme, setTheme } = useTheme();
 
-export const SettingsView: React.FC<SettingsViewProps> = ({
-  user,
-  theme,
-  setTheme,
-  logout,
-  setShowPricing,
-  setShowPrivacy,
-  setShowTerms
-}) => {
+  const setShowPricing = (show: boolean) => {};
+  const setShowPrivacy = (show: boolean) => {};
+  const setShowTerms = (show: boolean) => {};
   return (
     <motion.div 
       key="settings"

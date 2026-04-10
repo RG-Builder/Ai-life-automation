@@ -3,10 +3,10 @@ import { motion } from 'framer-motion';
 import { Bell, X, Sparkles } from 'lucide-react';
 
 interface NotificationsPanelProps {
-  setShowNotifications: (show: boolean) => void;
+  onClose: () => void;
 }
 
-export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ setShowNotifications }) => {
+export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ onClose }) => {
   return (
     <motion.div 
       initial={{ x: '100%' }}
@@ -24,7 +24,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({ setShowN
             <p className="text-[10px] font-black uppercase tracking-widest text-secondary">System Updates</p>
           </div>
         </div>
-        <button onClick={() => setShowNotifications(false)} className="text-text_secondary hover:text-text_primary">
+        <button onClick={onClose} className="text-text_secondary hover:text-text_primary">
           <X size={24} />
         </button>
       </div>

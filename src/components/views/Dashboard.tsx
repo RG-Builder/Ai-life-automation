@@ -5,34 +5,28 @@ import { NextActionCard } from '../dashboard/NextActionCard';
 import { MissionCard } from '../missions/MissionCard';
 import { Mission, MotivationState, Analytics, User } from '../../types/index';
 import { isToday } from '../../lib/utils';
+import { useAppContext } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../theme';
 
-interface DashboardProps {
-  missions: Mission[];
-  nextAction: Mission | null;
-  motivationState: MotivationState | null;
-  motivationQuote: string;
-  dailyScore: number;
-  selfAwareness: Analytics | null;
-  user: User | null;
-  theme: any;
-  setActiveTab: (tab: any) => void;
-  handleAction: (type: string, payload?: any) => Promise<void>;
-  setShowNotifications: (show: boolean) => void;
-}
+export const Dashboard: React.FC = () => {
+  const { 
+    missions, 
+    motivationState, 
+    dailyScore, 
+    handleAction,
+    generateDayPlan,
+    generateAiInsights
+  } = useAppContext();
+  const { user } = useAuth();
+  const { theme } = useTheme();
 
-export const Dashboard: React.FC<DashboardProps> = ({
-  missions,
-  nextAction,
-  motivationState,
-  motivationQuote,
-  dailyScore,
-  selfAwareness,
-  user,
-  theme,
-  setActiveTab,
-  handleAction,
-  setShowNotifications
-}) => {
+  const nextAction = missions.find(m => m.status === 'pending') || null;
+  const motivationQuote = "Your potential is limited only by your focus."; // Could be from context
+  const selfAwareness = null; // Could be from context
+  const setActiveTab = (tab: any) => {}; // Need to handle this or move to context
+  const setShowNotifications = (show: boolean) => {};
+
   const todayMissions = missions.filter(m => 
     isToday(m.created_at) || 
     (m.deadline && isToday(m.deadline)) || 

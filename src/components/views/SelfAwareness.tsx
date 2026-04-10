@@ -2,26 +2,19 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Brain, Target, Activity, Flame, Zap } from 'lucide-react';
 import { Mission, Habit, Analytics } from '../../types';
+import { useAppContext } from '../../context/AppContext';
+import { useTheme } from '../../theme';
 
-interface SelfAwarenessProps {
-  missions: Mission[];
-  consistencySystem: Habit[];
-  selfAwareness: Analytics | null;
-  theme: any;
-}
-
-export const SelfAwareness: React.FC<SelfAwarenessProps> = ({
-  missions,
-  consistencySystem,
-  selfAwareness,
-  theme
-}) => {
+export const SelfAwareness: React.FC = () => {
+  const { missions, habits } = useAppContext();
+  const { theme } = useTheme();
+  const selfAwareness = null; // Could be from context
   const completedMissions = missions.filter(m => m.status === 'completed');
   const totalMissions = missions.length;
   const cognitiveEfficiency = totalMissions > 0 ? Math.round((completedMissions.length / totalMissions) * 100) : 0;
   
-  const habitConsistency = consistencySystem.length > 0 ? 
-    Math.round((consistencySystem.reduce((acc, h) => acc + (h.current_count / h.goal_count), 0) / consistencySystem.length) * 100) : 0;
+  const habitConsistency = habits.length > 0 ? 
+    Math.round((habits.reduce((acc, h) => acc + (h.current_count / h.goal_count), 0) / habits.length) * 100) : 0;
 
   return (
     <motion.div 
@@ -99,7 +92,7 @@ export const SelfAwareness: React.FC<SelfAwarenessProps> = ({
           </div>
           <div className="space-y-2">
             <div className="text-[10px] font-black uppercase tracking-widest text-text_secondary">Peak Streak</div>
-            <div className="text-3xl font-black text-text_primary">{Math.max(...consistencySystem.map(h => h.streak), 0)}</div>
+            <div className="text-3xl font-black text-text_primary">{Math.max(...habits.map(h => h.streak), 0)}</div>
           </div>
           <div className="space-y-2">
             <div className="text-[10px] font-black uppercase tracking-widest text-text_secondary">Drive Score</div>

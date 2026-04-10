@@ -2,17 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Pause, Play, CheckCircle2 } from 'lucide-react';
 import { Mission } from '../../types';
+import { useTheme } from '../../theme';
 
 interface FocusModeProps {
   task: Mission;
-  onComplete: () => void;
-  onCancel: () => void;
+  onClose: () => void;
 }
 
-export const FocusMode: React.FC<FocusModeProps> = ({ task, onComplete, onCancel }) => {
+export const FocusMode: React.FC<FocusModeProps> = ({ task, onClose }) => {
+  const { theme } = useTheme();
   const [timeLeft, setTimeLeft] = useState(task.duration * 60);
   const [isActive, setIsActive] = useState(true);
   const [distractions, setDistractions] = useState(0);
+  
+  const onComplete = () => {
+    // Handle completion logic if needed, or just close
+    onClose();
+  };
+
+  const onCancel = () => {
+    onClose();
+  };
   
   useEffect(() => {
     let interval: any = null;

@@ -2,22 +2,12 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Check, Clock, CheckCircle2 } from 'lucide-react';
 import { Mission } from '../../types';
+import { useAppContext } from '../../context/AppContext';
+import { useTheme } from '../../theme';
 
-interface TimelineMatrixProps {
-  timelineMatrix: Mission[];
-  generateSchedule: () => Promise<void>;
-  handleAction: (type: string, payload?: any) => Promise<void>;
-  loading: boolean;
-  theme: any;
-}
-
-export const TimelineMatrix: React.FC<TimelineMatrixProps> = ({
-  timelineMatrix,
-  generateSchedule,
-  handleAction,
-  loading,
-  theme
-}) => {
+export const TimelineMatrix: React.FC = () => {
+  const { timelineMatrix, generateDayPlan, handleAction, loading } = useAppContext();
+  const { theme } = useTheme();
   return (
     <motion.div 
       key="schedule"
@@ -34,7 +24,7 @@ export const TimelineMatrix: React.FC<TimelineMatrixProps> = ({
           </p>
         </div>
         <button 
-          onClick={generateSchedule}
+          onClick={generateDayPlan}
           disabled={loading}
           className="stitch-button stitch-button-primary text-[10px] uppercase tracking-widest w-full sm:w-auto"
         >

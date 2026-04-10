@@ -1,64 +1,60 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Zap, Plus } from 'lucide-react';
 import { MissionCard } from '../missions/MissionCard';
 import { Mission } from '../../types';
+import { useAppContext } from '../../context/AppContext';
+import { useTheme } from '../../theme';
+import { toDate } from '../../lib/utils';
 
-interface MissionMatrixProps {
-  missions: Mission[];
-  taskFilter: 'all' | 'pending' | 'completed' | 'overdue';
-  setTaskFilter: (filter: 'all' | 'pending' | 'completed' | 'overdue') => void;
-  saveMission: (e: React.FormEvent) => Promise<void>;
-  editingMission: Mission | null;
-  title: string;
-  setTitle: (val: string) => void;
-  urgencyScore: number;
-  setUrgencyScore: (val: number) => void;
-  estimatedEffort: number;
-  setEstimatedEffort: (val: number) => void;
-  impactLevel: number;
-  setImpactLevel: (val: number) => void;
-  duration: number;
-  setDuration: (val: number) => void;
-  deadline: string;
-  setDeadline: (val: string) => void;
-  deadlineError: string | null;
-  setDeadlineError: (val: string | null) => void;
-  category: string;
-  setCategory: (val: string) => void;
-  loading: boolean;
-  resetForm: () => void;
-  theme: any;
-  handleAction: (type: string, payload?: any) => Promise<void>;
-}
+export const MissionMatrix: React.FC = () => {
+  const { missions, handleAction, loading } = useAppContext();
+  const { theme } = useTheme();
 
-export const MissionMatrix: React.FC<MissionMatrixProps> = ({
-  missions,
-  taskFilter,
-  setTaskFilter,
-  saveMission,
-  editingMission,
-  title,
-  setTitle,
-  urgencyScore,
-  setUrgencyScore,
-  estimatedEffort,
-  setEstimatedEffort,
-  impactLevel,
-  setImpactLevel,
-  duration,
-  setDuration,
-  deadline,
-  setDeadline,
-  deadlineError,
-  setDeadlineError,
-  category,
-  setCategory,
-  loading,
-  resetForm,
-  theme,
-  handleAction
-}) => {
+  const [taskFilter, setTaskFilter] = useState<'all' | 'pending' | 'completed' | 'overdue'>('all');
+  const [editingMission, setEditingMission] = useState<Mission | null>(null);
+  const [title, setTitle] = useState('');
+  const [urgencyScore, setUrgencyScore] = useState(5);
+  const [estimatedEffort, setEstimatedEffort] = useState(3);
+  const [impactLevel, setImpactLevel] = useState(5);
+  const [duration, setDuration] = useState(30);
+  const [deadline, setDeadline] = useState('');
+  const [deadlineError, setDeadlineError] = useState<string | null>(null);
+  const [category, setCategory] = useState('general');
+
+  const resetForm = () => {
+    setEditingMission(null);
+    setTitle('');
+    setUrgencyScore(5);
+    setEstimatedEffort(3);
+    setImpactLevel(5);
+    setDuration(30);
+    setDeadline('');
+    setDeadlineError(null);
+    setCategory('general');
+  };
+
+  const saveMission = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+
+    const payload = {
+      title,
+      urgency_score: urgencyScore,
+      estimated_effort: estimatedEffort,
+      impact_level: impactLevel,
+      duration,
+      deadline: deadline ? new Date(deadline).toISOString() : null,
+      category
+    };
+
+    if (editingMission) {
+      await handleAction('UPDATE_TASK', { id: editingMission.id, data: payload });
+    } else {
+      await handleAction('ADD_TASK', payload);
+    }
+    resetForm();
+  };
   return (
     <motion.div 
       key="tasks"
