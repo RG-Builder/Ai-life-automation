@@ -20,30 +20,47 @@ import { OpenRouter } from "@openrouter/sdk";
 
 dotenv.config();
 
-// Initialize Firebase Admin
-let firebaseAdminInitialized = false;
-if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    try {
-      let saString = (process.env.FIREBASE_SERVICE_ACCOUNT || "").trim();
-      if (saString.startsWith('"') && saString.endsWith('"')) {
-        saString = saString.substring(1, saString.length - 1).replace(/\\"/g, '"').replace(/\\n/g, '\n');
-      }
-      if (saString) {
-        const serviceAccount = JSON.parse(saString);
-        if (serviceAccount && serviceAccount.project_id && serviceAccount.private_key) {
-          admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount)
-          });
-          console.log("Firebase Admin initialized successfully for project:", serviceAccount.project_id);
-          firebaseAdminInitialized = true;
+  // Initialize Firebase Admin
+  let firebaseAdminInitialized = false;
+  let db: admin.firestore.Firestore | null = null;
+  
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      try {
+        let saString = (process.env.FIREBASE_SERVICE_ACCOUNT || "").trim();
+        
+        // Handle cases where the secret might be double-quoted or escaped
+        if (saString.startsWith('"') && saString.endsWith('"')) {
+          saString = saString.substring(1, saString.length - 1);
         }
-      }
-    } catch (e: any) {
-      console.error("Firebase Admin initialization failed:", e.message);
-    }
-}
+        
+        // Unescape common characters if they are escaped
+        saString = saString.replace(/\\n/g, '\n').replace(/\\"/g, '"');
 
-const db = admin.firestore();
+        if (saString) {
+          // Attempt to find the first '{' and last '}' to extract the JSON object
+          const start = saString.indexOf('{');
+          const end = saString.lastIndexOf('}');
+          if (start !== -1 && end !== -1 && end > start) {
+            saString = saString.substring(start, end + 1);
+          }
+
+          const serviceAccount = JSON.parse(saString);
+          if (serviceAccount && serviceAccount.project_id && serviceAccount.private_key) {
+            admin.initializeApp({
+              credential: admin.credential.cert(serviceAccount)
+            });
+            console.log("✅ Firebase Admin initialized successfully for project:", serviceAccount.project_id);
+            firebaseAdminInitialized = true;
+            db = admin.firestore();
+          }
+        }
+      } catch (e: any) {
+        console.error("❌ Firebase Admin initialization failed:", e.message);
+        console.error("Raw string length:", (process.env.FIREBASE_SERVICE_ACCOUNT || "").length);
+      }
+  } else {
+    console.warn("⚠️ FIREBASE_SERVICE_ACCOUNT not found. Some backend features may be limited.");
+  }
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -215,6 +232,10 @@ async function startServer() {
       }
 
       const decodedToken = await admin.auth().verifyIdToken(token);
+      if (!db) {
+        console.error("❌ Firestore database not initialized. Cannot fetch user profile.");
+        return res.status(500).json({ error: "Database not initialized" });
+      }
       const userRef = db.collection('users').doc(decodedToken.uid);
       const userDoc = await userRef.get();
       
@@ -268,29 +289,6 @@ async function startServer() {
       throw new Error("AI service configuration error: API key is missing.");
     }
 
-    // 1. Check Caching
-    const promptHash = crypto.createHash('sha256').update(prompt + systemInstruction).digest('hex');
-    const cacheRef = db.collection('ai_cache').doc(promptHash);
-    const cachedDoc = await cacheRef.get();
-    if (cachedDoc.exists) {
-      console.log(`AI Cache Hit for user ${userId}`);
-      return { text: cachedDoc.data()?.response, cached: true };
-    }
-
-    // 2. Cost Control & Limits
-    const today = new Date().toISOString().split('T')[0];
-    const usageRef = db.collection('users').doc(userId).collection('usage_logs');
-    const dailyRequests = await usageRef.where('date', '==', today).get();
-    
-    // Free users: max 3 total. Premium: 50/day.
-    const limits = plan === 'premium' 
-      ? { requests: 50, tokens: 200000 } 
-      : { requests: 3, tokens: 10000 };
-
-    if (dailyRequests.size >= limits.requests) {
-      throw new Error(`Limit reached (${limits.requests} requests/day). Please try again tomorrow or upgrade.`);
-    }
-
     // 3. Model Routing Logic (Cost-optimized)
     // Simple tasks -> Step Flash. Complex tasks -> Qwen 3.6.
     const selectedModel = taskType === 'simple' ? AI_MODELS.FAST : AI_MODELS.PRIMARY;
@@ -341,6 +339,37 @@ async function startServer() {
         reasoningTokens: reasoningTokens
       };
     };
+
+    // 1. Check Caching
+    const promptHash = crypto.createHash('sha256').update(prompt + systemInstruction).digest('hex');
+    if (!db) {
+      console.warn("⚠️ AI Cache disabled: Firestore not initialized.");
+      return { text: (await callAI(selectedModel)).text, cached: false };
+    }
+    const cacheRef = db.collection('ai_cache').doc(promptHash);
+    const cachedDoc = await cacheRef.get();
+    if (cachedDoc.exists) {
+      console.log(`AI Cache Hit for user ${userId}`);
+      return { text: cachedDoc.data()?.response, cached: true };
+    }
+
+    // 2. Cost Control & Limits
+    const today = new Date().toISOString().split('T')[0];
+    if (!db) {
+      console.warn("⚠️ AI Usage logging disabled: Firestore not initialized.");
+      return await callAI(selectedModel);
+    }
+    const usageRef = db.collection('users').doc(userId).collection('usage_logs');
+    const dailyRequests = await usageRef.where('date', '==', today).get();
+    
+    // Free users: max 3 total. Premium: 50/day.
+    const limits = plan === 'premium' 
+      ? { requests: 50, tokens: 200000 } 
+      : { requests: 3, tokens: 10000 };
+
+    if (dailyRequests.size >= limits.requests) {
+      throw new Error(`Limit reached (${limits.requests} requests/day). Please try again tomorrow or upgrade.`);
+    }
 
     try {
       let result;
@@ -436,6 +465,7 @@ async function startServer() {
     const userId = req.user.id;
 
     try {
+      if (!db) throw new Error("Database not initialized");
       const options = {
         amount: amount * 100,
         currency,
@@ -474,6 +504,7 @@ async function startServer() {
     const generated_signature = hmac.digest("hex");
 
     if (generated_signature === razorpay_signature) {
+      if (!db) return res.status(500).json({ error: "Database not initialized" });
       const batch = db.batch();
       const paymentRef = db.collection('users').doc(userId).collection('payments').doc(razorpay_order_id);
       const userRef = db.collection('users').doc(userId);
@@ -497,6 +528,7 @@ async function startServer() {
 
   app.post("/api/payments/cancel-subscription", verifyFirebaseToken, async (req: any, res) => {
     const userId = req.user.id;
+    if (!db) return res.status(500).json({ error: "Database not initialized" });
     await db.collection('users').doc(userId).update({ subscription_plan: 'trial' });
     res.json({ success: true, message: "Subscription cancelled" });
   });
@@ -507,6 +539,7 @@ async function startServer() {
       return res.status(403).json({ error: "Forbidden" });
     }
 
+    if (!db) return res.status(500).json({ error: "Database not initialized" });
     const usersSnap = await db.collection('users').get();
     const premiumUsersSnap = await db.collection('users').where('subscription_plan', '==', 'premium').get();
     

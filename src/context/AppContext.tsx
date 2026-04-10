@@ -20,7 +20,6 @@ import { useCollection } from 'react-firebase-hooks/firestore';
 import { handleFirestoreError, getDocFromServer } from '../lib/utils';
 import confetti from 'canvas-confetti';
 import { updateDailyScore, MOTIVATION_MESSAGES } from '../services/motivationService';
-import { GoogleGenAI } from '@google/genai';
 
 interface AppContextType {
   missions: Mission[];
@@ -76,9 +75,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     hydration: 1450
   });
 
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-  const MODEL_NAME = "gemini-3-flash-preview";
-
   useEffect(() => {
     if (firebaseUser) {
       const userDoc = doc(db, 'users', firebaseUser.uid);
@@ -120,13 +116,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     Return JSON array: [{ id, startTime, endTime }]. Use 24h format.`;
 
     try {
-      const response = await ai.models.generateContent({
-        model: MODEL_NAME,
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
+      const idToken = await firebaseUser.getIdToken();
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          prompt,
+          systemInstruction: "You are an AI Life Architect. Optimize schedules for peak performance.",
+          taskType: 'complex'
+        })
       });
+
+      if (!response.ok) throw new Error('AI generation failed');
+      const result = await response.json();
       
-      let text = response.text || '[]';
+      let text = result.text || '[]';
       const jsonMatch = text.match(/\[[\s\S]*\]/);
       if (jsonMatch) text = jsonMatch[0];
       const plan = JSON.parse(text);
@@ -156,12 +163,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     Return JSON array: [{ insight_text, type }].`;
 
     try {
-      const response = await ai.models.generateContent({
-        model: MODEL_NAME,
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
+      const idToken = await firebaseUser.getIdToken();
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          prompt,
+          systemInstruction: "You are a performance analyst. Provide actionable life insights.",
+          taskType: 'simple'
+        })
       });
-      const insightsList = JSON.parse(response.text || '[]');
+
+      if (!response.ok) throw new Error('AI generation failed');
+      const result = await response.json();
+      
+      const insightsList = JSON.parse(result.text || '[]');
       if (insightsRef && Array.isArray(insightsList)) {
         for (const insight of insightsList) {
           await addDoc(insightsRef, {
