@@ -190,7 +190,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         'firebase_uid', 'email', 'subscription_plan', 'role', 'trial_used',
         'description', 'frequency', 'goal_count', 'current_count', 'last_completed_at',
         'type', 'target_date', 'start_time', 'end_time', 'duration_minutes', 
-        'distractions_count', 'efficiency_score', 'insight_text', 'is_read', 'task'
+        'distractions_count', 'efficiency_score', 'insight_text', 'is_read', 'task',
+        'user_id'
       ];
       Object.keys(obj).forEach(key => {
         if (allowed.includes(key) && obj[key] !== undefined) {

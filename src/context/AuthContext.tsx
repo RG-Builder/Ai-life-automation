@@ -49,6 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           // Create initial profile
           const initialData = {
+            firebase_uid: fbUser.uid,
             email: fbUser.email,
             subscription_plan: 'free',
             role: 'user',
