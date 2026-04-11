@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Brain, X, Sparkles, ArrowRight } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
 import { Mission, Habit, User } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
+import { useAI } from '../../hooks/useAI';
 
 interface AiPanelProps {
   onClose: () => void;
@@ -13,7 +13,7 @@ interface AiPanelProps {
 export const AiPanel: React.FC<AiPanelProps> = ({ onClose }) => {
   const { missions, habits, userProfile } = useAppContext();
   const { user } = useAuth();
-  const MODEL_NAME = "gemini-3-flash-preview";
+  const { generate } = useAI();
   const [query, setQuery] = useState('');
   const [chat, setChat] = useState<{ role: 'user' | 'ai', text: string }[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -26,11 +26,11 @@ export const AiPanel: React.FC<AiPanelProps> = ({ onClose }) => {
     setIsGenerating(true);
 
     try {
-      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-      const response = await genAI.models.generateContent({
-        model: MODEL_NAME,
-        contents: `User Query: ${userMsg}\nContext: ${JSON.stringify({ missions, habits, userProfile })}\nAs an AI Life Architect, provide a concise, high-impact response.`,
-      });
+      const response = await generate(
+        `User Query: ${userMsg}\nContext: ${JSON.stringify({ missions, habits, userProfile })}`,
+        "As an AI Life Architect, provide a concise, high-impact response.",
+        "simple"
+      );
       
       setChat(prev => [...prev, { role: 'ai', text: response.text || "I'm processing your request." }]);
     } catch (err) {

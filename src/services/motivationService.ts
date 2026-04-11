@@ -190,7 +190,7 @@ export async function logReminder(userId: string, taskId: string, type: string) 
     user_id: userId,
     task_id: taskId,
     type,
-    sent_at: serverTimestamp(),
+    sent_at: new Date().toISOString(),
     action_taken: false
   });
   

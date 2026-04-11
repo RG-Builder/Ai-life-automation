@@ -31,7 +31,7 @@ export const useHabits = () => {
         user_id: auth.currentUser.uid,
         current_count: 0,
         streak: 0,
-        created_at: serverTimestamp()
+        created_at: new Date().toISOString()
       });
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'habits');
@@ -49,7 +49,7 @@ export const useHabits = () => {
       const habitDoc = doc(habitsRef, id);
       await updateDoc(habitDoc, {
         current_count: currentCount + 1,
-        last_completed_at: serverTimestamp(),
+        last_completed_at: new Date().toISOString(),
         streak: currentStreak + 1
       });
       confetti({ particleCount: 40, spread: 50, origin: { y: 0.7 } });
@@ -69,7 +69,7 @@ export const useHabits = () => {
       const habitDoc = doc(habitsRef, id);
       await updateDoc(habitDoc, {
         ...data,
-        updated_at: serverTimestamp()
+        updated_at: new Date().toISOString()
       });
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `habits/${id}`);

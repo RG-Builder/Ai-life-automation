@@ -34,38 +34,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
       if (fbUser) {
-        // Sync with our local user state/Firestore profile
-        const userDoc = doc(db, 'users', fbUser.uid);
-        const snap = await getDoc(userDoc);
-        
-        if (snap.exists()) {
-          const data = snap.data();
-          setUser({
-            id: fbUser.uid,
-            email: fbUser.email || '',
-            plan: data.subscription_plan || 'free',
-            role: data.role || 'user'
-          });
-        } else {
-          // Create initial profile
-          const initialData = {
-            firebase_uid: fbUser.uid,
-            email: fbUser.email,
-            subscription_plan: 'free',
-            role: 'user',
-            created_at: serverTimestamp(),
-            morning_person_score: 0.5,
-            peak_energy_start: '09:00',
-            peak_energy_end: '11:00',
-            focus_duration_avg: 25
-          };
-          await setDoc(userDoc, initialData);
-          setUser({
-            id: fbUser.uid,
-            email: fbUser.email || '',
-            plan: 'free',
-            role: 'user'
-          });
+        try {
+          // Sync with our local user state/Firestore profile
+          const userDoc = doc(db, 'users', fbUser.uid);
+          const snap = await getDoc(userDoc);
+          
+          if (snap.exists()) {
+            const data = snap.data();
+            setUser({
+              id: fbUser.uid,
+              email: fbUser.email || '',
+              plan: data.subscription_plan || 'free',
+              role: data.role || 'user'
+            });
+            console.log("✅ User profile loaded from Firestore");
+          } else {
+            // Create initial profile
+            console.log("🆕 Creating new user profile in Firestore...");
+            const initialData = {
+              firebase_uid: fbUser.uid,
+              email: fbUser.email,
+              subscription_plan: 'free',
+              role: 'user',
+              created_at: new Date().toISOString(),
+              morning_person_score: 0.5,
+              peak_energy_start: '09:00',
+              peak_energy_end: '11:00',
+              focus_duration_avg: 25
+            };
+            await setDoc(userDoc, initialData);
+            setUser({
+              id: fbUser.uid,
+              email: fbUser.email || '',
+              plan: 'free',
+              role: 'user'
+            });
+            console.log("✅ New user profile created successfully");
+          }
+        } catch (error: any) {
+          console.error("❌ Error syncing user profile:", error);
+          // Don't block the app if profile sync fails, but log it
         }
       } else {
         setUser(null);

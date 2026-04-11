@@ -32,7 +32,7 @@ export const useMissions = () => {
         ...mission,
         user_id: auth.currentUser.uid,
         status: 'pending',
-        created_at: serverTimestamp(),
+        created_at: new Date().toISOString(),
         streak: 0,
         is_habit: mission.is_habit || false
       });
@@ -53,7 +53,7 @@ export const useMissions = () => {
       const taskDoc = doc(tasksRef, id);
       await setDoc(taskDoc, {
         status: 'completed',
-        completed_at: serverTimestamp(),
+        completed_at: new Date().toISOString(),
         streak: currentStreak + 1
       }, { merge: true });
       confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
@@ -73,7 +73,7 @@ export const useMissions = () => {
       const taskDoc = doc(tasksRef, id);
       await setDoc(taskDoc, {
         ...data,
-        updated_at: serverTimestamp()
+        updated_at: new Date().toISOString()
       }, { merge: true });
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `tasks/${id}`);

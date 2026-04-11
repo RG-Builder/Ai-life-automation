@@ -16,7 +16,8 @@ import compression from "compression";
 import { rateLimit } from 'express-rate-limit';
 import axios from "axios";
 import validator from "validator";
-import { OpenRouter } from "@openrouter/sdk";
+
+import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
 
@@ -138,6 +139,17 @@ async function startServer() {
   });
 
   app.use("/api", globalLimiter);
+
+  app.post("/api/log-error", express.json(), (req, res) => {
+    console.error("🚨 CLIENT ERROR LOGGED:");
+    console.error(req.body.error);
+    if (req.body.stack) console.error(req.body.stack);
+    
+    const fs = require('fs');
+    fs.appendFileSync('client-errors.log', new Date().toISOString() + ' - ' + req.body.error + '\n');
+    
+    res.json({ status: "ok" });
+  });
 
   // Auth Middleware
   const authenticateToken = (req: any, res: any, next: any) => {
@@ -269,74 +281,41 @@ async function startServer() {
     }
   };
 
-  // AI Gateway Logic (OpenRouter Multi-Model)
-  const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-  
-  const openrouter = new OpenRouter({
-    apiKey: OPENROUTER_API_KEY || ""
-  });
+  // AI Gateway Logic (Gemini API)
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
   const AI_MODELS = {
-    PRIMARY: "qwen/qwen-plus", // Qwen Plus for complex logic (resolved 'No endpoints found' error)
-    FAST: "stepfun/step-3.5-flash:free"      // Step 3.5 Flash for quick responses and fallback
+    PRIMARY: "gemini-2.5-pro",
+    FAST: "gemini-2.5-flash"
   };
 
   const handle_ai_request = async (user: any, prompt: string, taskType: 'simple' | 'complex' = 'simple', systemInstruction: string = "You are a helpful assistant.") => {
     const userId = user.id;
     const plan = user.subscription_plan;
 
-    if (!OPENROUTER_API_KEY) {
+    if (!GEMINI_API_KEY) {
       throw new Error("AI service configuration error: API key is missing.");
     }
 
-    // 3. Model Routing Logic (Cost-optimized)
-    // Simple tasks -> Step Flash. Complex tasks -> Qwen 3.6.
+    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+
+    // 3. Model Routing Logic
     const selectedModel = taskType === 'simple' ? AI_MODELS.FAST : AI_MODELS.PRIMARY;
 
     const callAI = async (model: string) => {
-      // Use streaming internally to capture reasoning tokens as per user requirement
-      const stream = await (openrouter.chat as any).send({
-        chatGenerationParams: {
-          model: model,
-          messages: [
-            { role: "system", content: systemInstruction },
-            { role: "user", content: prompt }
-          ],
-          stream: true,
-          provider: {
-            sort: "throughput"
-          }
-        }
-      }, {
-        headers: {
-          "HTTP-Referer": process.env.APP_URL || "https://ai.studio/build",
-          "X-Title": "AI Studio Build Applet"
+      const response = await ai.models.generateContent({
+        model: model,
+        contents: prompt,
+        config: {
+          systemInstruction: systemInstruction,
         }
       });
 
-      let responseText = "";
-      let usage: any = null;
-      let reasoningTokens = 0;
-
-      for await (const chunk of (stream as any)) {
-        const content = chunk.choices[0]?.delta?.content;
-        if (content) {
-          responseText += content;
-        }
-        if (chunk.usage) {
-          usage = chunk.usage;
-          if (chunk.usage.reasoningTokens) {
-            reasoningTokens = chunk.usage.reasoningTokens;
-            console.log(`\nReasoning tokens for user ${userId}:`, reasoningTokens);
-          }
-        }
-      }
-
       return {
-        text: responseText,
-        usage: usage,
+        text: response.text || "",
+        usage: null,
         model: model,
-        reasoningTokens: reasoningTokens
+        reasoningTokens: 0
       };
     };
 
@@ -434,9 +413,9 @@ async function startServer() {
 
     if (!prompt) return res.status(400).json({ error: "Prompt is required" });
 
-    // Strict Input Sanitization
-    prompt = validator.escape(String(prompt).substring(0, 2000));
-    systemInstruction = validator.escape(String(systemInstruction || "You are a helpful assistant.").substring(0, 1000));
+    // Input length limits
+    prompt = String(prompt).substring(0, 5000);
+    systemInstruction = String(systemInstruction || "You are a helpful assistant.").substring(0, 2000);
 
     try {
       const result = await handle_ai_request(user, prompt, taskType, systemInstruction);

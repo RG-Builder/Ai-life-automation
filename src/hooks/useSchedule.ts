@@ -46,7 +46,7 @@ export const useSchedule = () => {
               await updateDoc(taskDoc, {
                 startTime: String(item.startTime),
                 endTime: String(item.endTime),
-                updated_at: serverTimestamp()
+                updated_at: new Date().toISOString()
               });
             }
           }

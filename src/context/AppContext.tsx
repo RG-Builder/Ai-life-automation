@@ -54,10 +54,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const goalsRef = firebaseUser ? collection(db, 'users', firebaseUser.uid, 'goals') : null;
   const insightsRef = firebaseUser ? collection(db, 'users', firebaseUser.uid, 'ai_insights') : null;
 
-  const [dbTasks, tasksLoading] = useCollection(tasksRef ? query(tasksRef, orderBy('created_at', 'desc')) : null);
-  const [dbHabits, habitsLoading] = useCollection(habitsRef ? query(habitsRef, orderBy('created_at', 'desc')) : null);
-  const [dbGoals] = useCollection(goalsRef ? query(goalsRef, orderBy('created_at', 'desc')) : null);
-  const [dbInsights] = useCollection(insightsRef ? query(insightsRef, orderBy('created_at', 'desc'), limit(10)) : null);
+  const [dbTasks, tasksLoading, tasksError] = useCollection(tasksRef ? query(tasksRef, orderBy('created_at', 'desc')) : null);
+  const [dbHabits, habitsLoading, habitsError] = useCollection(habitsRef ? query(habitsRef, orderBy('created_at', 'desc')) : null);
+  const [dbGoals, goalsLoading, goalsError] = useCollection(goalsRef ? query(goalsRef, orderBy('created_at', 'desc')) : null);
+  const [dbInsights, insightsLoading, insightsError] = useCollection(insightsRef ? query(insightsRef, orderBy('created_at', 'desc'), limit(10)) : null);
+
+  useEffect(() => {
+    if (tasksError) console.error("Tasks fetch error:", tasksError);
+    if (habitsError) console.error("Habits fetch error:", habitsError);
+    if (goalsError) console.error("Goals fetch error:", goalsError);
+    if (insightsError) console.error("Insights fetch error:", insightsError);
+  }, [tasksError, habitsError, goalsError, insightsError]);
 
   const [missions, setMissions] = useState<Mission[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -145,7 +152,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             await setDoc(taskDoc, {
               startTime: String(item.startTime),
               endTime: String(item.endTime),
-              updated_at: serverTimestamp()
+              updated_at: new Date().toISOString()
             }, { merge: true });
           }
         });
@@ -180,14 +187,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!response.ok) throw new Error('AI generation failed');
       const result = await response.json();
       
-      const insightsList = JSON.parse(result.text || '[]');
+      let text = result.text || '[]';
+      const jsonMatch = text.match(/\[[\s\S]*\]/);
+      if (jsonMatch) text = jsonMatch[0];
+      const insightsList = JSON.parse(text);
       if (insightsRef && Array.isArray(insightsList)) {
         for (const insight of insightsList) {
           await addDoc(insightsRef, {
             ...insight,
             user_id: firebaseUser.uid,
             is_read: false,
-            created_at: serverTimestamp()
+            created_at: new Date().toISOString()
           });
         }
       }
@@ -230,7 +240,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ...cleanPayload,
             user_id: firebaseUser.uid,
             status: 'pending',
-            created_at: serverTimestamp(),
+            created_at: new Date().toISOString(),
             streak: 0,
             is_habit: cleanPayload.is_habit || false
           });
@@ -242,7 +252,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const taskDoc = doc(tasksRef, cleanPayload.id);
           await setDoc(taskDoc, {
             status: 'completed',
-            completed_at: serverTimestamp(),
+            completed_at: new Date().toISOString(),
             streak: (cleanPayload.streak || 0) + 1
           }, { merge: true });
           
@@ -261,7 +271,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const taskDoc = doc(tasksRef, cleanPayload.id);
           await setDoc(taskDoc, {
             ...sanitize(cleanPayload.data || {}),
-            updated_at: serverTimestamp()
+            updated_at: new Date().toISOString()
           }, { merge: true });
           break;
         }
@@ -283,7 +293,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const habitDoc = doc(habitsRef, cleanPayload.id);
           await updateDoc(habitDoc, {
             current_count: (cleanPayload.current_count || 0) + 1,
-            last_completed_at: serverTimestamp(),
+            last_completed_at: new Date().toISOString(),
             streak: (cleanPayload.streak || 0) + 1
           });
           confetti({ particleCount: 40, spread: 50, origin: { y: 0.7 } });
@@ -296,7 +306,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             user_id: firebaseUser.uid,
             current_count: 0,
             streak: 0,
-            created_at: serverTimestamp()
+            created_at: new Date().toISOString()
           });
           break;
         }
@@ -310,7 +320,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const habitDoc = doc(habitsRef, cleanPayload.id);
           await updateDoc(habitDoc, {
             ...cleanPayload,
-            updated_at: serverTimestamp()
+            updated_at: new Date().toISOString()
           });
           break;
         }
