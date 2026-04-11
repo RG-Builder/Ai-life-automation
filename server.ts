@@ -18,6 +18,7 @@ import axios from "axios";
 import validator from "validator";
 
 import { GoogleGenAI } from "@google/genai";
+import { OpenRouter } from "@openrouter/sdk";
 
 dotenv.config();
 
@@ -293,30 +294,72 @@ async function startServer() {
     const userId = user.id;
     const plan = user.subscription_plan;
 
-    if (!GEMINI_API_KEY) {
-      throw new Error("AI service configuration error: API key is missing.");
+    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "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";
+
+    if (taskType === 'simple' && !GEMINI_API_KEY) {
+      throw new Error("AI service configuration error: Gemini API key is missing.");
+    }
+    if (taskType === 'complex' && !OPENROUTER_API_KEY) {
+      throw new Error("AI service configuration error: OpenRouter API key is missing.");
     }
 
-    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+    const ai = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
 
     // 3. Model Routing Logic
-    const selectedModel = taskType === 'simple' ? AI_MODELS.FAST : AI_MODELS.PRIMARY;
+    const selectedModel = taskType === 'simple' ? AI_MODELS.FAST : "google/gemma-4-26b-a4b-it:free";
 
     const callAI = async (model: string) => {
-      const response = await ai.models.generateContent({
-        model: model,
-        contents: prompt,
-        config: {
-          systemInstruction: systemInstruction,
-        }
-      });
+      if (taskType === 'complex') {
+        const openrouter = new OpenRouter({
+          apiKey: OPENROUTER_API_KEY
+        });
+        
+        const stream = await openrouter.chat.send({
+          chatGenerationParams: {
+            model: "google/gemma-4-26b-a4b-it:free",
+            messages: [
+              { role: "system", content: systemInstruction },
+              { role: "user", content: prompt }
+            ],
+            stream: true
+          }
+        });
 
-      return {
-        text: response.text || "",
-        usage: null,
-        model: model,
-        reasoningTokens: 0
-      };
+        let responseText = "";
+        let reasoningTokens = 0;
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content;
+          if (content) {
+            responseText += content;
+          }
+          if (chunk.usage) {
+            reasoningTokens = (chunk.usage as any).reasoningTokens || 0;
+          }
+        }
+
+        return {
+          text: responseText,
+          usage: null,
+          model: "google/gemma-4-26b-a4b-it:free",
+          reasoningTokens
+        };
+      } else {
+        if (!ai) throw new Error("Gemini AI client not initialized");
+        const response = await ai.models.generateContent({
+          model: model,
+          contents: prompt,
+          config: {
+            systemInstruction: systemInstruction,
+          }
+        });
+
+        return {
+          text: response.text || "",
+          usage: null,
+          model: model,
+          reasoningTokens: 0
+        };
+      }
     };
 
     // 1. Check Caching
@@ -359,9 +402,13 @@ async function startServer() {
         console.error(`AI Model ${selectedModel} failed:`, err.message);
         
         // Fallback chain: PRIMARY -> FAST
-        if (selectedModel === AI_MODELS.PRIMARY) {
+        if (selectedModel === AI_MODELS.PRIMARY || taskType === 'complex') {
           console.warn(`Falling back to FAST model: ${AI_MODELS.FAST}`);
+          // Temporarily override taskType so callAI uses Gemini
+          const originalTaskType = taskType;
+          taskType = 'simple'; 
           result = await callAI(AI_MODELS.FAST);
+          taskType = originalTaskType;
         } else {
           throw err; // Re-throw if the FAST model itself failed
         }

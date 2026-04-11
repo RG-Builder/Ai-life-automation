@@ -88,8 +88,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithGoogle = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login failed:", error);
+      if (error.code === 'auth/user-cancelled' || error.code === 'auth/popup-closed-by-user') {
+        // User cancelled the login, no need to throw an error
+        return;
+      }
       throw error;
     }
   };

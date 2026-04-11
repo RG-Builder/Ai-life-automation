@@ -137,7 +137,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         })
       });
 
-      if (!response.ok) throw new Error('AI generation failed');
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'AI generation failed');
+      }
       const result = await response.json();
       
       let text = result.text || '[]';
@@ -184,7 +187,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         })
       });
 
-      if (!response.ok) throw new Error('AI generation failed');
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'AI generation failed');
+      }
       const result = await response.json();
       
       let text = result.text || '[]';
