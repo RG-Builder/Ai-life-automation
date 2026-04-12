@@ -28,9 +28,8 @@ export const MissionCard: React.FC<MissionCardProps> = ({ mission, theme, handle
   return (
     <motion.div 
       layout
-      whileHover={{ scale: 1.01, borderColor: 'var(--color-primary)' }}
-      initial={theme.animations.type !== 'minimal' ? { opacity: 0, y: 20 } : { opacity: 1 }}
-      animate={{ opacity: 1, y: 0 }}
+      whileHover={theme.motion.hover}
+      whileTap={theme.motion.tap}
       className={`stitch-card p-4 sm:p-6 group relative overflow-hidden transition-all border-transparent hover:border-primary/30 ${mission.status === 'completed' ? 'opacity-60 grayscale-[0.5]' : ''}`}
     >
       <div className="flex justify-between items-start mb-4">
@@ -49,13 +48,15 @@ export const MissionCard: React.FC<MissionCardProps> = ({ mission, theme, handle
           </h3>
         </div>
         <div className="flex items-center gap-2">
-          <button 
+          <motion.button 
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             onClick={handleDelete}
             className={`size-8 rounded-lg flex items-center justify-center transition-all ${confirmDelete ? 'bg-danger text-white' : 'text-text_secondary hover:text-danger hover:bg-danger/10 opacity-40 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100'}`}
             title={confirmDelete ? "Click again to confirm" : "Delete Mission"}
           >
             {confirmDelete ? <X size={16} /> : <Trash2 size={16} />}
-          </button>
+          </motion.button>
           <div className={`size-10 rounded-xl flex items-center justify-center text-text_secondary bg-surface border border-border`}>
             {mission.category === 'health' ? <Heart size={20} /> : mission.category === 'work' ? <Briefcase size={20} /> : <Target size={20} />}
           </div>
@@ -87,19 +88,23 @@ export const MissionCard: React.FC<MissionCardProps> = ({ mission, theme, handle
 
       <div className="flex items-center gap-2">
         {mission.status !== 'completed' && (
-          <button 
+          <motion.button 
+            whileHover={{ scale: 1.1, backgroundColor: 'var(--color-primary)', color: '#000' }}
+            whileTap={{ scale: 0.9 }}
             onClick={() => handleAction('COMPLETE_TASK', { id: mission.id, streak: mission.streak })}
             className="size-10 md:size-12 rounded-xl md:rounded-2xl bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-white transition-all"
           >
             <CheckCircle2 size={20} />
-          </button>
+          </motion.button>
         )}
-        <button 
+        <motion.button 
+          whileHover={{ scale: 1.02, backgroundColor: 'var(--color-primary)', color: '#000' }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => handleAction('START_FOCUS', { task: mission })}
           className="flex-1 py-3 md:py-4 bg-surface border border-border text-text_primary rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs hover:bg-primary hover:text-black hover:border-primary transition-all"
         >
           {theme.id === 'elite' ? 'Engage Protocol' : 'Start Focus'}
-        </button>
+        </motion.button>
       </div>
     </motion.div>
   );

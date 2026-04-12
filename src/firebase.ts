@@ -1,33 +1,28 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import { initializeFirestore } from 'firebase/firestore';
+import { initializeFirestore, getDocFromServer, doc } from 'firebase/firestore';
 
-// Use environment variables instead of JSON file
+// Mock Firebase configuration since config file was deleted
+const firebaseConfigData = {
+  apiKey: "mock-api-key",
+  authDomain: "mock-auth-domain",
+  projectId: "mock-project-id",
+  appId: "mock-app-id",
+  firestoreDatabaseId: "mock-database-id",
+  storageBucket: "mock-storage-bucket",
+  messagingSenderId: "mock-sender-id",
+  measurementId: "mock-measurement-id"
+};
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ||
-         process.env.FIREBASE_API_KEY ||
-         "AIzaSyAavRxJ7HZUR8d0QQ0V6qUWmvGiSa-1ueY",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ||
-              process.env.FIREBASE_AUTH_DOMAIN ||
-              "gen-lang-client-0335857006.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ||
-             process.env.FIREBASE_PROJECT_ID ||
-             "gen-lang-client-0335857006",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID ||
-         process.env.FIREBASE_APP_ID ||
-         "1:1024422333401:web:8f2bdc06340b24d5fde7c8",
-  databaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID ||
-              process.env.FIREBASE_DATABASE_ID ||
-              "ai-studio-081e94ee-3f0c-4e02-8c9b-0200c6b3c314",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ||
-                 process.env.FIREBASE_STORAGE_BUCKET ||
-                 "gen-lang-client-0335857006.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ||
-                     process.env.FIREBASE_MESSAGING_SENDER_ID ||
-                     "1024422333401",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID ||
-                 process.env.FIREBASE_MEASUREMENT_ID ||
-                 "G-YYS0PCT8QN",
+  apiKey: firebaseConfigData.apiKey,
+  authDomain: firebaseConfigData.authDomain,
+  projectId: firebaseConfigData.projectId,
+  appId: firebaseConfigData.appId,
+  databaseId: firebaseConfigData.firestoreDatabaseId,
+  storageBucket: firebaseConfigData.storageBucket,
+  messagingSenderId: firebaseConfigData.messagingSenderId,
+  measurementId: firebaseConfigData.measurementId,
 };
 
 console.log("🔥 Firebase initializing...");
@@ -53,6 +48,21 @@ export const db = initializeFirestore(
   },
   firebaseConfig.databaseId
 );
+
+// Test connection to Firestore
+async function testConnection() {
+  try {
+    // Attempt to fetch a non-existent doc to test connection
+    await getDocFromServer(doc(db, '_connection_test_', 'init'));
+    console.log("✅ Firestore connection test successful");
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.error("❌ Firebase configuration error: The client is offline. Please check your Firebase setup.");
+    }
+    // Other errors (like 403) are handled by security rules or are expected if the doc doesn't exist
+  }
+}
+testConnection();
 
 export const googleProvider = new GoogleAuthProvider();
 

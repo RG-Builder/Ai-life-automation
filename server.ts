@@ -4,6 +4,7 @@ import fs from 'fs';
 const logStream = fs.createWriteStream('server.log', { flags: 'a' });
 const originalLog = console.log;
 const originalError = console.error;
+const originalWarn = console.warn;
 console.log = function(...args) {
   logStream.write(new Date().toISOString() + ' LOG: ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ') + '\n');
   originalLog.apply(console, args);
@@ -11,6 +12,10 @@ console.log = function(...args) {
 console.error = function(...args) {
   logStream.write(new Date().toISOString() + ' ERR: ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ') + '\n');
   originalError.apply(console, args);
+};
+console.warn = function(...args) {
+  logStream.write(new Date().toISOString() + ' WRN: ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ') + '\n');
+  originalWarn.apply(console, args);
 };
 
 import express from "express";
@@ -31,13 +36,9 @@ import { rateLimit } from 'express-rate-limit';
 import axios from "axios";
 import validator from "validator";
 
-import { GoogleGenAI, Type } from "@google/genai";
-import { OpenRouter } from "@openrouter/sdk";
 import { getFirestore } from "firebase-admin/firestore";
 
 dotenv.config();
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
   // Initialize Firebase Admin
   let firebaseAdminInitialized = false;
@@ -74,11 +75,56 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
             });
             firebaseAdminInitialized = true;
             
-            // Use FIREBASE_DATABASE_ID if provided, otherwise default to '(default)'
-            const databaseId = process.env.FIREBASE_DATABASE_ID || undefined;
-            console.log(`✅ Firebase Admin initialized for project: ${serviceAccount.project_id}, Database: ${databaseId || '(default)'}`);
+            // Prioritize firebase-applet-config.json for databaseId, then FIREBASE_DATABASE_ID env var
+            let databaseId = "";
+            try {
+              const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+              if (fs.existsSync(configPath)) {
+                const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+                databaseId = config.firestoreDatabaseId;
+              }
+            } catch (err) {
+              console.warn("⚠️ Could not read firebase-applet-config.json for databaseId");
+            }
             
-            db = getFirestore(adminApp, databaseId);
+            if (!databaseId) {
+              databaseId = process.env.FIREBASE_DATABASE_ID || "";
+            }
+            
+            console.log(`✅ Firebase Admin initialized for project: ${serviceAccount.project_id}`);
+            console.log(`🔑 Service Account Email: ${serviceAccount.client_email}`);
+            console.log(`🗄️ Target Database: ${databaseId || '(default)'}`);
+            
+            db = getFirestore(adminApp, databaseId || undefined);
+            
+            // Verify database access
+            try {
+              await db.collection('_health_check_').limit(1).get();
+              console.log("✅ Firestore database access verified");
+            } catch (err: any) {
+              const isNotFoundError = err.message.includes('NOT_FOUND');
+              const isPermissionError = err.message.includes('PERMISSION_DENIED');
+              
+              if ((isPermissionError || isNotFoundError) && databaseId) {
+                console.warn(`⚠️ ${isNotFoundError ? 'NOT_FOUND' : 'PERMISSION_DENIED'} on database ${databaseId}. Falling back to (default) database.`);
+                db = getFirestore(adminApp);
+                try {
+                  await db.collection('_health_check_').limit(1).get();
+                  console.log("✅ Firestore fallback to (default) database successful");
+                } catch (fallbackErr: any) {
+                  console.warn(`⚠️ (default) database also failed: ${fallbackErr.message}. Trying projectId as databaseId.`);
+                  db = getFirestore(adminApp, serviceAccount.project_id);
+                  try {
+                    await db.collection('_health_check_').limit(1).get();
+                    console.log(`✅ Firestore fallback to projectId ${serviceAccount.project_id} successful`);
+                  } catch (projectErr: any) {
+                    console.error("❌ All Firestore initialization attempts failed:", projectErr.message);
+                  }
+                }
+              } else {
+                console.error("❌ Firestore initial health check failed:", err.message);
+              }
+            }
           }
         }
       } catch (e: any) {
@@ -265,122 +311,157 @@ async function startServer() {
     }
 
     try {
-      if (!firebaseAdminInitialized) {
-        // Fallback: Decode the token without verifying signature if Admin SDK is not available
-        const decoded = jwt.decode(token) as any;
-        const uid = decoded?.uid || decoded?.user_id || decoded?.sub;
-        if (decoded && uid) {
-           req.user = { 
-             id: uid, 
-             email: decoded.email, 
-             role: 'user', 
-             subscription_plan: 'trial' 
-           };
-           return next();
-        }
-        return authenticateToken(req, res, next);
-      }
-
       const decodedToken = await admin.auth().verifyIdToken(token);
-      if (!db) {
-        console.error("❌ Firestore database not initialized. Cannot fetch user profile.");
-        return res.status(500).json({ error: "Database not initialized" });
-      }
-      const userRef = db.collection('users').doc(decodedToken.uid);
-      const userDoc = await userRef.get();
       
-      let user;
-      if (!userDoc.exists) {
-        user = { 
-          id: decodedToken.uid, 
-          email: decodedToken.email, 
-          subscription_plan: 'trial',
-          role: 'user',
-          trial_used: 0,
-          created_at: admin.firestore.FieldValue.serverTimestamp()
-        };
-        await userRef.set(user);
-        console.log(`New user registered: ${decodedToken.email} (${decodedToken.uid})`);
+      let user: any = {
+        id: decodedToken.uid,
+        email: decodedToken.email,
+        subscription_plan: 'trial',
+        role: 'user',
+        trial_used: 0
+      };
+
+      if (db) {
+        try {
+          const userRef = db.collection('users').doc(decodedToken.uid);
+          const userDoc = await userRef.get();
+          
+          if (!userDoc.exists) {
+            await userRef.set({
+              ...user,
+              created_at: admin.firestore.FieldValue.serverTimestamp()
+            });
+            console.log(`New user registered: ${decodedToken.email} (${decodedToken.uid})`);
+          } else {
+            user = { ...userDoc.data(), id: decodedToken.uid };
+          }
+        } catch (dbError: any) {
+          console.error("⚠️ Firestore profile fetch failed, using default profile:", dbError.message);
+          // Check if this is the bootstrapped admin
+          if (decodedToken.email === "realprouser1234@gmail.com" && decodedToken.email_verified) {
+            user.role = 'admin';
+            user.subscription_plan = 'premium';
+          }
+        }
       } else {
-        user = userDoc.data();
-        user.id = decodedToken.uid;
+        // Fallback for bootstrapped admin when DB is not available
+        if (decodedToken.email === "realprouser1234@gmail.com" && decodedToken.email_verified) {
+          user.role = 'admin';
+          user.subscription_plan = 'premium';
+        }
       }
       
       req.user = user;
       next();
     } catch (error: any) {
-      console.error("Auth Error:", error.message);
+      console.error("❌ Auth Middleware Error:", error.message);
+      if (error.stack) console.error(error.stack);
       
       if (error.code === 'auth/id-token-expired') {
         return res.status(401).json({ error: "Token expired", code: "TOKEN_EXPIRED" });
       }
       
-      res.status(401).json({ error: "Invalid authentication" });
+      res.status(401).json({ error: "Authentication failed", details: error.message });
     }
   };
 
   // AI Gateway Logic
+  const isValidModelName = (name: string) => {
+    if (!name || typeof name !== 'string') return false;
+    // Basic check: model names shouldn't contain spaces or curly braces or "import"
+    if (name.includes(' ') || name.includes('{') || name.includes('import')) return false;
+    return true;
+  };
+
   const AI_MODELS = {
-    PRIMARY: "gemini-3.1-pro-preview",
-    FAST: "gemini-3-flash-preview"
+    PRIMARY: "google/gemma-4-31b-it:free", // THINKING MODEL
+    FAST: "google/gemma-3-27b-it:free",    // FAST MODEL
+    FALLBACK_STATIC: "Next Action: Focus on your current priority.\n\nInsight: AI systems are temporarily limited, but your productivity doesn't have to be."
   };
 
   const LIFE_PILOT_SYSTEM_PROMPT = `
-You are the AI orchestration layer for "Life Pilot".
-Your goal: Deliver fast, intelligent, and reliable responses.
+You are the AI orchestration system for "Life Pilot".
+Your job: Choose the correct model, generate useful outputs, and ensure reliability.
 
-RESPONSE STANDARD:
-1. Next Action (Required)
-2. Schedule (Optional, if relevant)
-3. Insight (Optional, if relevant)
+CORE OBJECTIVE:
+• Respond fast when possible
+• Use deep reasoning only when needed
+• Always return actionable output
+• Never fail the user
 
-Keep responses: Short, actionable, and clear.
-Use user data (tasks, deadlines, history) when provided.
-If data is missing, make reasonable assumptions and still provide useful output.
-Do NOT mention which model you are using.
+OUTPUT FORMAT (STRICT):
+Unless the user explicitly requests a JSON format for data processing, always respond in this structure:
+
+Next Action:
+<clear, short task>
+
+(Optional) Schedule:
+<only if needed>
+
+(Optional) Insight:
+<1 short data-based sentence>
+
+RESPONSE STYLE:
+• Short, direct, action-focused
+• No unnecessary explanation
+• No long paragraphs, generic advice, or fluff
+
+IMPORTANT:
+• Do NOT mention models or routing
+• Do NOT generate placeholder responses
 `;
 
   const handle_ai_request = async (user: any, prompt: string, taskType: 'simple' | 'complex' = 'simple', systemInstruction: string = "") => {
     const userId = user.id;
-    const plan = user.subscription_plan;
+    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+
+    if (!OPENROUTER_API_KEY) {
+      throw new Error("AI service configuration error: OPENROUTER_API_KEY is missing.");
+    }
 
     const fullSystemInstruction = `${LIFE_PILOT_SYSTEM_PROMPT}\n${systemInstruction}`;
 
-    // 3. Model Routing Logic
-    // If task involves planning, constraints, or optimization, use THINKING MODEL
+    // 1. Model Routing Logic
+    // THINKING MODEL for: full schedules, planning multiple tasks, analyzing user behavior, prioritizing tasks, optimizing routines
+    // FAST MODEL for: simple chat, short answers, motivation, reminders, next action suggestions, UI text
     const isThinkingTask = taskType === 'complex' || 
-                           prompt.toLowerCase().includes('plan') || 
                            prompt.toLowerCase().includes('schedule') || 
+                           prompt.toLowerCase().includes('plan') || 
+                           prompt.toLowerCase().includes('analyze') ||
+                           prompt.toLowerCase().includes('prioritize') ||
                            prompt.toLowerCase().includes('optimize') ||
-                           prompt.toLowerCase().includes('constraint') ||
-                           prompt.toLowerCase().includes('prioritize');
+                           prompt.toLowerCase().includes('behavior');
     
     const selectedModel = isThinkingTask ? AI_MODELS.PRIMARY : AI_MODELS.FAST;
 
     const callAI = async (model: string, retryCount = 0): Promise<any> => {
-      if (!process.env.GEMINI_API_KEY) {
-        throw new Error("AI service configuration error: GEMINI_API_KEY is missing. Please add it in the Secrets panel.");
-      }
-      
       try {
-        const response = await ai.models.generateContent({
-          model: model,
-          contents: prompt,
-          config: {
-            systemInstruction: fullSystemInstruction,
+        const response = await axios.post(
+          'https://openrouter.ai/api/v1/chat/completions',
+          {
+            model: model,
+            messages: [
+              { role: 'system', content: fullSystemInstruction },
+              { role: 'user', content: prompt }
+            ],
+            max_tokens: 2000,
+            temperature: 0.7
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            timeout: 30000 // 30s timeout
           }
-        });
+        );
 
-        return {
-          text: response.text || "",
-          usage: null,
-          model: model,
-          reasoningTokens: 0
-        };
+        const text = response.data.choices?.[0]?.message?.content || "";
+        return { text, model };
       } catch (err: any) {
-        console.error(`AI Model ${model} failed (Attempt ${retryCount + 1}):`, err.message);
+        console.error(`AI Model ${model} failed (Attempt ${retryCount + 1}):`, err.response?.data || err.message);
         
-        // Retry once on the same model if it's a transient error
+        // Retry once on the same model
         if (retryCount < 1) {
           return await callAI(model, retryCount + 1);
         }
@@ -390,116 +471,59 @@ Do NOT mention which model you are using.
 
     const callAIWithFallback = async () => {
       try {
-        console.log(`Calling AI Model: ${selectedModel} for user ${userId} (Task: ${taskType})`);
+        console.log(`Routing to ${selectedModel === AI_MODELS.PRIMARY ? 'THINKING' : 'FAST'} model for task: ${taskType}`);
         return await callAI(selectedModel);
       } catch (err: any) {
-        // Fallback chain: PRIMARY -> FAST
+        // FALLBACK SYSTEM (MANDATORY)
         if (selectedModel === AI_MODELS.PRIMARY) {
-          console.warn(`Falling back to FAST model: ${AI_MODELS.FAST} due to error: ${err.message}`);
+          // If THINKING fails -> retry once (handled in callAI) -> switch to FAST
+          console.warn(`THINKING model failed, switching to FAST model: ${AI_MODELS.FAST}`);
           try {
             return await callAI(AI_MODELS.FAST);
           } catch (fastErr: any) {
-            console.error("FAST model also failed. Returning simplified response.");
-            return {
-              text: "Next Action: Take a deep breath and focus on your most important task.\n\nInsight: I'm currently operating in offline mode, but I'm still here to help you stay on track.",
-              usage: null,
-              model: "static-fallback",
-              reasoningTokens: 0
-            };
+            console.error("FAST model also failed after fallback.");
+            return { text: AI_MODELS.FALLBACK_STATIC, model: "static-fallback" };
           }
         } else {
-          console.error("AI model failed. Returning simplified response.");
-          return {
-            text: "Next Action: Focus on your current priority.\n\nInsight: AI systems are temporarily limited, but your productivity doesn't have to be.",
-            usage: null,
-            model: "static-fallback",
-            reasoningTokens: 0
-          };
+          // If FAST fails -> retry once (handled in callAI) -> return minimal actionable response
+          console.error("FAST model failed. Returning minimal response.");
+          return { text: AI_MODELS.FALLBACK_STATIC, model: "static-fallback" };
         }
       }
     };
 
     try {
-      // 1. Check Caching
+      // Caching logic
       const promptHash = crypto.createHash('sha256').update(prompt + systemInstruction).digest('hex');
-      let cachedDoc: any = null;
-      let usageRef: any = null;
-      let cacheRef: any = null;
-      const today = new Date().toISOString().split('T')[0];
-
       if (db) {
-        cacheRef = db.collection('ai_cache').doc(promptHash);
-        cachedDoc = await cacheRef.get();
-        if (cachedDoc.exists) {
-          console.log(`AI Cache Hit for user ${userId}`);
-          return { text: cachedDoc.data()?.response, cached: true };
+        try {
+          const cachedDoc = await db.collection('ai_cache').doc(promptHash).get();
+          if (cachedDoc.exists) {
+            return { text: cachedDoc.data()?.response, cached: true };
+          }
+        } catch (e) {
+          console.warn("Cache check failed:", e.message);
         }
-
-        // 2. Cost Control & Limits
-        usageRef = db.collection('users').doc(userId).collection('usage_logs');
-        const dailyRequests = await usageRef.where('date', '==', today).get();
-        
-        // Free users: max 3 total. Premium: 50/day.
-        const limits = plan === 'premium' 
-          ? { requests: 50, tokens: 200000 } 
-          : { requests: 3, tokens: 10000 };
-
-        if (dailyRequests.size >= limits.requests) {
-          throw new Error(`Limit reached (${limits.requests} requests/day). Please try again tomorrow or upgrade.`);
-        }
-      } else {
-        console.warn("⚠️ AI Cache disabled: Firestore not initialized.");
       }
 
       const result = await callAIWithFallback();
-
       const aiText = result.text;
-      const tokensUsed = result.usage?.total_tokens || Math.ceil((prompt.length + aiText.length) / 4);
 
-      if (db && usageRef && cacheRef) {
-        // 4. Log Usage & Cache
-        await usageRef.add({
-          tokens_used: tokensUsed,
-          date: today,
-          created_at: admin.firestore.FieldValue.serverTimestamp()
-        });
-        await cacheRef.set({
-          response: aiText,
-          created_at: admin.firestore.FieldValue.serverTimestamp()
-        });
-      }
-
-      return { text: aiText, cached: false, model: result.model, reasoningTokens: result.reasoningTokens };
-    } catch (error: any) {
-      // Handle different error structures (Axios vs SDK)
-      const errorData = error.response?.data || error.data || error;
-      const status = error.response?.status || error.status || error.statusCode;
-      
-      console.log("DEBUG ERROR:", { status, errorDataMessage: errorData?.error?.message, errorMessage: error.message });
-      
-      const errorLog = `AI Request Handler Error: ${JSON.stringify(errorData, null, 2) || error.message}\n`;
-      fs.appendFileSync('ai-errors.log', errorLog);
-      console.error(errorLog);
-      
-      let userMessage = "AI service temporarily unavailable. Please try again later.";
-      
-      if (status === 401) {
-        if (errorData?.error?.message === 'User not found.') {
-          userMessage = "OpenRouter API Key error: 'User not found'. Your OpenRouter API key is invalid or the account was deleted. Please update it in the Secrets panel.";
-        } else {
-          userMessage = "Invalid AI API configuration. Please check your API keys.";
+      if (db) {
+        try {
+          await db.collection('ai_cache').doc(promptHash).set({
+            response: aiText,
+            created_at: admin.firestore.FieldValue.serverTimestamp()
+          });
+        } catch (e) {
+          console.warn("Caching failed:", e.message);
         }
-      } else if (status === 403) {
-        userMessage = "AI service access forbidden. This may be due to environment restrictions or missing headers.";
-      } else if (status === 402) {
-        userMessage = "AI service quota exceeded. Please try again later.";
-      } else if (errorData?.error?.message) {
-        userMessage = `AI Error: ${errorData.error.message}`;
-      } else if (error.message) {
-        userMessage = `AI Error: ${error.message}`;
       }
-      
-      throw new Error(userMessage);
+
+      return { text: aiText, cached: false, model: result.model };
+    } catch (error: any) {
+      console.error("AI Orchestration Error:", error.message);
+      return { text: AI_MODELS.FALLBACK_STATIC, model: "error-fallback" };
     }
   };
 

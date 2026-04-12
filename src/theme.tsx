@@ -49,8 +49,14 @@ export interface ThemeTokens {
     activeFocus: string;
     score: string;
   };
-  animations: {
-    type: 'smooth' | 'bouncy' | 'minimal';
+  motion: {
+    transition: any;
+    variants: {
+      container: any;
+      item: any;
+    };
+    hover: any;
+    tap: any;
   };
 }
 
@@ -102,8 +108,23 @@ export const themes: Record<ThemeType, ThemeTokens> = {
       activeFocus: 'Active Missions',
       score: 'Efficiency Score',
     },
-    animations: {
-      type: 'smooth',
+    motion: {
+      transition: { type: "spring", stiffness: 300, damping: 30 },
+      variants: {
+        container: {
+          hidden: { opacity: 0 },
+          show: {
+            opacity: 1,
+            transition: { staggerChildren: 0.05 }
+          }
+        },
+        item: {
+          hidden: { opacity: 0, scale: 0.95, filter: "blur(10px)" },
+          show: { opacity: 1, scale: 1, filter: "blur(0px)" }
+        }
+      },
+      hover: { scale: 1.02, boxShadow: "0 0 20px rgba(0, 242, 255, 0.3)", filter: "brightness(1.2)" },
+      tap: { scale: 0.98 }
     },
   },
   simple: {
@@ -152,8 +173,23 @@ export const themes: Record<ThemeType, ThemeTokens> = {
       activeFocus: 'Up Next',
       score: 'Weekly Goal',
     },
-    animations: {
-      type: 'bouncy',
+    motion: {
+      transition: { type: "spring", stiffness: 400, damping: 15 },
+      variants: {
+        container: {
+          hidden: { opacity: 0 },
+          show: {
+            opacity: 1,
+            transition: { staggerChildren: 0.1 }
+          }
+        },
+        item: {
+          hidden: { opacity: 0, scale: 0.8, rotate: -5 },
+          show: { opacity: 1, scale: 1, rotate: 0 }
+        }
+      },
+      hover: { scale: 1.05, rotate: 1 },
+      tap: { scale: 0.9, rotate: -1 }
     },
   },
   minimal: {
@@ -202,8 +238,23 @@ export const themes: Record<ThemeType, ThemeTokens> = {
       activeFocus: 'Focus Items',
       score: 'Daily Score',
     },
-    animations: {
-      type: 'minimal',
+    motion: {
+      transition: { duration: 0.2, ease: "linear" },
+      variants: {
+        container: {
+          hidden: { opacity: 0 },
+          show: {
+            opacity: 1,
+            transition: { staggerChildren: 0.03 }
+          }
+        },
+        item: {
+          hidden: { opacity: 0, y: 10 },
+          show: { opacity: 1, y: 0 }
+        }
+      },
+      hover: { opacity: 0.8 },
+      tap: { opacity: 0.6 }
     },
   },
 };

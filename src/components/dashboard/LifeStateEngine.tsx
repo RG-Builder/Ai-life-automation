@@ -44,7 +44,7 @@ export const LifeStateEngine: React.FC<LifeStateEngineProps> = ({
             <span className="text-xl sm:text-2xl font-bold text-primary/60 ml-1">%</span>
           </div>
           <div className="mt-2 flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full border border-primary/20">
-            <div className={`size-1.5 bg-primary rounded-full ${theme.animations.type !== 'minimal' ? 'animate-pulse' : ''}`} />
+            <div className={`size-1.5 bg-primary rounded-full ${theme.id !== 'minimal' ? 'animate-pulse' : ''}`} />
             <span className="text-[10px] font-bold uppercase tracking-widest text-primary">
               {motivationState?.recovery_mode ? 'Recovery Mode' : displayScore > 80 ? 'Optimal' : displayScore > 50 ? 'Stable' : 'Low Power'}
             </span>

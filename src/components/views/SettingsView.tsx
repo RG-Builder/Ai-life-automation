@@ -15,27 +15,36 @@ export const SettingsView: React.FC = () => {
   return (
     <motion.div 
       key="settings"
-      initial={theme.animations.type !== 'minimal' ? { opacity: 0, y: 10 } : { opacity: 1 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
+      variants={theme.motion.variants.container}
+      initial="hidden"
+      animate="show"
+      exit="hidden"
       className="space-y-8 sm:space-y-12 pb-32"
     >
-      <div>
+      <motion.div variants={theme.motion.variants.item}>
         <h2 className={`text-2xl md:text-5xl font-black tracking-tighter text-text_primary`}>System <span className="text-primary">Configuration</span></h2>
         <p className="text-text_secondary text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] mt-2">
           {theme.id === 'elite' ? 'Neural Interface & Protocol Settings' : 'Customize your experience.'}
         </p>
-      </div>
+      </motion.div>
 
       {/* User Profile Section */}
-      <div className="stitch-card p-6 md:p-10 border-border relative overflow-hidden">
+      <motion.div 
+        variants={theme.motion.variants.item}
+        whileHover={theme.motion.hover}
+        className="stitch-card p-6 md:p-10 border-border relative overflow-hidden"
+      >
         <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none text-text_secondary">
           <Settings size={120} />
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-6 md:gap-10 relative z-10">
-          <div className="size-20 md:size-28 rounded-[32px] md:rounded-[40px] bg-primary/10 flex items-center justify-center text-primary border-4 border-surface shadow-2xl">
+          <motion.div 
+            whileHover={{ rotate: 360 }}
+            transition={{ duration: 1 }}
+            className="size-20 md:size-28 rounded-[32px] md:rounded-[40px] bg-primary/10 flex items-center justify-center text-primary border-4 border-surface shadow-2xl"
+          >
             <span className="text-3xl md:text-5xl font-black">{user?.email?.[0].toUpperCase()}</span>
-          </div>
+          </motion.div>
           <div className="text-center sm:text-left space-y-2">
             <h3 className="text-2xl md:text-3xl font-black tracking-tight text-text_primary">{user?.email}</h3>
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
@@ -46,84 +55,63 @@ export const SettingsView: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Theme Selection */}
-      <div className="space-y-6">
-        <div className="flex items-center gap-3">
+      <motion.div variants={theme.motion.variants.container} className="space-y-6">
+        <motion.div variants={theme.motion.variants.item} className="flex items-center gap-3">
           <div className="size-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
             <Sparkles size={16} />
           </div>
           <h3 className="text-lg font-black tracking-tight text-text_primary">UI Personality</h3>
-        </div>
+        </motion.div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             { id: 'elite', name: 'Elite AI', desc: 'High-performance tactical interface' },
             { id: 'simple', name: 'Simple', desc: 'Clean, friendly, and approachable' },
             { id: 'minimal', name: 'Minimal', desc: 'Zero distractions, pure focus' }
           ].map(t => (
-            <button 
+            <motion.button 
               key={t.id}
+              variants={theme.motion.variants.item}
+              whileHover={theme.motion.hover}
+              whileTap={theme.motion.tap}
               onClick={() => setTheme(t.id)}
               className={`stitch-card p-6 text-left transition-all group ${theme.id === t.id ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border hover:border-primary/30'}`}
             >
               <div className={`text-xs font-black uppercase tracking-widest mb-1 ${theme.id === t.id ? 'text-primary' : 'text-text_secondary'}`}>{t.name}</div>
               <div className="text-xs font-medium text-text_secondary group-hover:text-text_primary transition-colors">{t.desc}</div>
-            </button>
+            </motion.button>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {/* System Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <button 
-          onClick={() => setShowPricing(true)}
-          className="stitch-card p-6 flex items-center justify-between hover:bg-surface transition-all group"
-        >
-          <div className="flex items-center gap-4">
-            <div className="size-10 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-black transition-all">
-              <CreditCard size={20} />
+      <motion.div variants={theme.motion.variants.container} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {[
+          { icon: CreditCard, label: 'Subscription', color: 'secondary', onClick: () => setShowPricing(true) },
+          { icon: Shield, label: 'Privacy Protocol', color: 'accent', onClick: () => setShowPrivacy(true) },
+          { icon: FileText, label: 'Terms of Service', color: 'text_secondary', onClick: () => setShowTerms(true) },
+          { icon: LogOut, label: 'De-Authorize System', color: 'danger', onClick: logout, isDanger: true }
+        ].map((action, idx) => (
+          <motion.button 
+            key={idx}
+            variants={theme.motion.variants.item}
+            whileHover={theme.motion.hover}
+            whileTap={theme.motion.tap}
+            onClick={action.onClick}
+            className={`stitch-card p-6 flex items-center justify-between hover:bg-surface transition-all group ${action.isDanger ? 'border-danger/10' : ''}`}
+          >
+            <div className="flex items-center gap-4">
+              <div className={`size-10 rounded-xl bg-${action.color}/10 flex items-center justify-center text-${action.color} group-hover:bg-${action.color} group-hover:text-black transition-all`}>
+                <action.icon size={20} />
+              </div>
+              <span className={`font-black uppercase tracking-widest text-xs ${action.isDanger ? 'text-danger' : 'text-text_primary'}`}>{action.label}</span>
             </div>
-            <span className="font-black uppercase tracking-widest text-xs text-text_primary">Subscription</span>
-          </div>
-          <Settings size={16} className="text-text_secondary" />
-        </button>
-        <button 
-          onClick={() => setShowPrivacy(true)}
-          className="stitch-card p-6 flex items-center justify-between hover:bg-surface transition-all group"
-        >
-          <div className="flex items-center gap-4">
-            <div className="size-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent group-hover:bg-accent group-hover:text-black transition-all">
-              <Shield size={20} />
-            </div>
-            <span className="font-black uppercase tracking-widest text-xs text-text_primary">Privacy Protocol</span>
-          </div>
-          <Settings size={16} className="text-text_secondary" />
-        </button>
-        <button 
-          onClick={() => setShowTerms(true)}
-          className="stitch-card p-6 flex items-center justify-between hover:bg-surface transition-all group"
-        >
-          <div className="flex items-center gap-4">
-            <div className="size-10 rounded-xl bg-surface border border-border flex items-center justify-center text-text_secondary group-hover:bg-text_primary group-hover:text-surface transition-all">
-              <FileText size={20} />
-            </div>
-            <span className="font-black uppercase tracking-widest text-xs text-text_primary">Terms of Service</span>
-          </div>
-          <Settings size={16} className="text-text_secondary" />
-        </button>
-        <button 
-          onClick={logout}
-          className="stitch-card p-6 flex items-center justify-between hover:bg-danger/10 transition-all group border-danger/10"
-        >
-          <div className="flex items-center gap-4">
-            <div className="size-10 rounded-xl bg-danger/10 flex items-center justify-center text-danger group-hover:bg-danger group-hover:text-white transition-all">
-              <LogOut size={20} />
-            </div>
-            <span className="font-black uppercase tracking-widest text-xs text-danger">De-Authorize System</span>
-          </div>
-        </button>
-      </div>
+            {!action.isDanger && <Settings size={16} className="text-text_secondary" />}
+          </motion.button>
+        ))}
+      </motion.div>
     </motion.div>
   );
 };

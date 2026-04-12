@@ -7,6 +7,7 @@ export interface Mission {
   urgency: number;
   urgency_score?: number;
   importance: number; // Added importance
+  priority?: 'high' | 'medium' | 'low'; // Added priority
   estimated_effort?: number;
   impact_level?: number;
   duration: number;
@@ -19,6 +20,16 @@ export interface Mission {
   endTime?: string;
   completed_at?: any;
   created_at: any;
+}
+
+export interface ScheduleItem {
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  duration: string;
+  type: 'deep-work' | 'meeting' | 'admin' | 'break' | 'routine';
+  completed?: boolean;
 }
 
 export interface User {

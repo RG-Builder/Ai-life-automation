@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { Dumbbell, Activity, Flame, Target, Edit3, Check, Trash2 } from 'lucide-react';
 import { Habit } from '../../types';
 
+import { useTheme } from '../../theme';
+
 interface HabitCardProps {
   habit: Habit;
   editHabit: (habit: Habit) => void;
@@ -10,8 +12,14 @@ interface HabitCardProps {
 }
 
 export const HabitCard: React.FC<HabitCardProps> = ({ habit, editHabit, handleAction }) => {
+  const { theme } = useTheme();
+
   return (
-    <div key={habit.id} className="stitch-card p-6 border-border group relative overflow-hidden">
+    <motion.div 
+      whileHover={theme.motion.hover}
+      whileTap={theme.motion.tap}
+      className="stitch-card p-6 border-border group relative overflow-hidden"
+    >
       <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none text-text_secondary">
         <Dumbbell size={80} />
       </div>
@@ -38,26 +46,32 @@ export const HabitCard: React.FC<HabitCardProps> = ({ habit, editHabit, handleAc
         </div>
         
         <div className="flex items-center gap-2">
-          <button 
+          <motion.button 
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             onClick={() => editHabit(habit)}
             className="size-10 rounded-xl bg-surface border border-border flex items-center justify-center text-text_secondary hover:text-primary transition-all"
             title="Edit Protocol"
           >
             <Edit3 size={18} />
-          </button>
-          <button 
+          </motion.button>
+          <motion.button 
+            whileHover={habit.current_count < habit.goal_count ? { scale: 1.1 } : {}}
+            whileTap={habit.current_count < habit.goal_count ? { scale: 0.9 } : {}}
             onClick={() => handleAction('TOGGLE_HABIT', { id: habit.id, current_count: habit.current_count, streak: habit.streak })}
             className={`size-10 rounded-xl flex items-center justify-center transition-all ${habit.current_count >= habit.goal_count ? 'bg-success/20 text-success cursor-default' : 'bg-primary text-black hover:scale-110 shadow-lg shadow-primary/20'}`}
             disabled={habit.current_count >= habit.goal_count}
           >
             <Check size={20} strokeWidth={3} />
-          </button>
-          <button 
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.1, backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'rgb(239, 68, 68)' }}
+            whileTap={{ scale: 0.9 }}
             onClick={() => handleAction('DELETE_HABIT', { id: habit.id })}
             className="size-10 rounded-xl bg-surface border border-border flex items-center justify-center text-text_secondary hover:text-danger transition-all"
           >
             <Trash2 size={18} />
-          </button>
+          </motion.button>
         </div>
       </div>
 
@@ -69,6 +83,6 @@ export const HabitCard: React.FC<HabitCardProps> = ({ habit, editHabit, handleAc
           className={`h-full ${habit.current_count >= habit.goal_count ? 'bg-success' : 'bg-primary'}`}
         />
       </div>
-    </div>
+    </motion.div>
   );
 };

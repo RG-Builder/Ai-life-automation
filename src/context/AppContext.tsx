@@ -1,362 +1,199 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { db, auth } from '../firebase';
-import { 
-  collection, 
-  query, 
-  orderBy, 
-  limit, 
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  setDoc,
-  serverTimestamp,
-  getDoc
-} from 'firebase/firestore';
-import { useAuth } from './AuthContext';
-import { Mission, Habit, Analytics, LifeState, HabitStat, MotivationState, OperationType } from '../types';
-import { useCollection } from 'react-firebase-hooks/firestore';
-import { handleFirestoreError, getDocFromServer } from '../lib/utils';
-import confetti from 'canvas-confetti';
-import { updateDailyScore, MOTIVATION_MESSAGES } from '../services/motivationService';
+import { Mission, ScheduleItem } from '../types';
+import { generateScheduleWithAI } from '../services/geminiService';
 
 interface AppContextType {
-  missions: Mission[];
-  habits: Habit[];
-  goals: any[];
-  insights: any[];
-  lifeState: LifeState;
-  setLifeState: React.Dispatch<React.SetStateAction<LifeState>>;
-  motivationState: MotivationState | null;
-  setMotivationState: React.Dispatch<React.SetStateAction<MotivationState | null>>;
-  dailyScore: number;
-  setDailyScore: React.Dispatch<React.SetStateAction<number>>;
-  focusTask: Mission | null;
-  setFocusTask: React.Dispatch<React.SetStateAction<Mission | null>>;
-  timelineMatrix: Mission[];
-  loading: boolean;
-  handleAction: (type: string, payload?: any) => Promise<void>;
-  microReward: string | null;
-  generateDayPlan: () => Promise<void>;
-  generateAiInsights: () => Promise<void>;
-  userProfile: any;
+  tasks: Mission[];
+  completedTasks: Mission[];
+  overdueTasks: Mission[];
+  currentFocusTask: Mission | null;
+  lifeScore: number;
+  streak: number;
+  schedule: ScheduleItem[];
+  
+  // Actions
+  addTask: (task: Partial<Mission>) => void;
+  completeTask: (taskId: string) => void;
+  deleteTask: (taskId: string) => void;
+  updateTask: (taskId: string, updates: Partial<Mission>) => void;
+  setFocusTask: (task: Mission | null) => void;
+  updateLifeScore: (score: number) => void;
+  updateStreak: (streak: number) => void;
+  generateSchedule: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const INITIAL_TASKS: Mission[] = [
+  {
+    id: '1',
+    title: 'Design System Overhaul',
+    status: 'pending',
+    priority: 'high',
+    deadline: new Date(Date.now() + 86400000).toISOString(),
+    duration: 45,
+    category: 'Deep Work',
+    impact: 'high',
+    urgency: 8,
+    importance: 9,
+    is_habit: false,
+    streak: 0,
+    created_at: new Date().toISOString()
+  },
+  {
+    id: '2',
+    title: 'Review PRs',
+    status: 'pending',
+    priority: 'medium',
+    deadline: new Date(Date.now() + 3600000).toISOString(),
+    duration: 60,
+    category: 'Engineering',
+    impact: 'moderate',
+    urgency: 5,
+    importance: 6,
+    is_habit: false,
+    streak: 0,
+    created_at: new Date().toISOString()
+  }
+];
+
+const INITIAL_SCHEDULE: ScheduleItem[] = [
+  { id: 's1', title: 'Deep Work: Core Logic', startTime: '09:00', endTime: '11:00', duration: '2h', type: 'deep-work', completed: true },
+  { id: 's2', title: 'Team Standup', startTime: '11:30', endTime: '12:00', duration: '30m', type: 'meeting', completed: false },
+  { id: 's3', title: 'Admin & Emails', startTime: '13:00', endTime: '14:00', duration: '1h', type: 'admin', completed: false },
+  { id: 's4', title: 'Creative Review', startTime: '15:00', endTime: '16:30', duration: '1.5h', type: 'meeting', completed: false },
+];
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { firebaseUser } = useAuth();
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [tasks, setTasks] = useState<Mission[]>(() => {
+    const saved = localStorage.getItem('lifepilot_tasks');
+    return saved ? JSON.parse(saved) : INITIAL_TASKS;
+  });
   
-  const tasksRef = firebaseUser ? collection(db, 'users', firebaseUser.uid, 'tasks') : null;
-  const habitsRef = firebaseUser ? collection(db, 'users', firebaseUser.uid, 'habits') : null;
-  const goalsRef = firebaseUser ? collection(db, 'users', firebaseUser.uid, 'goals') : null;
-  const insightsRef = firebaseUser ? collection(db, 'users', firebaseUser.uid, 'ai_insights') : null;
-
-  const [dbTasks, tasksLoading, tasksError] = useCollection(tasksRef ? query(tasksRef, orderBy('created_at', 'desc')) : null);
-  const [dbHabits, habitsLoading, habitsError] = useCollection(habitsRef ? query(habitsRef, orderBy('created_at', 'desc')) : null);
-  const [dbGoals, goalsLoading, goalsError] = useCollection(goalsRef ? query(goalsRef, orderBy('created_at', 'desc')) : null);
-  const [dbInsights, insightsLoading, insightsError] = useCollection(insightsRef ? query(insightsRef, orderBy('created_at', 'desc'), limit(10)) : null);
-
-  useEffect(() => {
-    if (tasksError) console.error("Tasks fetch error:", tasksError);
-    if (habitsError) console.error("Habits fetch error:", habitsError);
-    if (goalsError) console.error("Goals fetch error:", goalsError);
-    if (insightsError) console.error("Insights fetch error:", insightsError);
-  }, [tasksError, habitsError, goalsError, insightsError]);
-
-  const [missions, setMissions] = useState<Mission[]>([]);
-  const [habits, setHabits] = useState<Habit[]>([]);
-  const [goals, setGoals] = useState<any[]>([]);
-  const [insights, setInsights] = useState<any[]>([]);
-  const [timelineMatrix, setTimelineMatrix] = useState<Mission[]>([]);
-  const [focusTask, setFocusTask] = useState<Mission | null>(null);
-  const [dailyScore, setDailyScore] = useState(0);
-  const [motivationState, setMotivationState] = useState<MotivationState | null>(null);
-  const [lifeState, setLifeState] = useState<LifeState>({
-    score: 84,
-    status: 'Peak',
-    insight: 'Biometric Peak is arriving. Deep Work is optimal for the next 90 minutes.',
-    focusLevel: 88,
-    hydration: 1450
+  const [currentFocusTask, setCurrentFocusTask] = useState<Mission | null>(() => {
+    const saved = localStorage.getItem('lifepilot_focus');
+    return saved ? JSON.parse(saved) : null;
+  });
+  
+  const [lifeScore, setLifeScore] = useState<number>(() => {
+    const saved = localStorage.getItem('lifepilot_score');
+    return saved ? parseInt(saved, 10) : 84;
+  });
+  
+  const [streak, setStreak] = useState<number>(() => {
+    const saved = localStorage.getItem('lifepilot_streak');
+    return saved ? parseInt(saved, 10) : 14;
+  });
+  
+  const [schedule, setSchedule] = useState<ScheduleItem[]>(() => {
+    const saved = localStorage.getItem('lifepilot_schedule');
+    return saved ? JSON.parse(saved) : INITIAL_SCHEDULE;
   });
 
+  // Save to localStorage on change
+  useEffect(() => { localStorage.setItem('lifepilot_tasks', JSON.stringify(tasks)); }, [tasks]);
+  useEffect(() => { localStorage.setItem('lifepilot_focus', JSON.stringify(currentFocusTask)); }, [currentFocusTask]);
+  useEffect(() => { localStorage.setItem('lifepilot_score', lifeScore.toString()); }, [lifeScore]);
+  useEffect(() => { localStorage.setItem('lifepilot_streak', streak.toString()); }, [streak]);
+  useEffect(() => { localStorage.setItem('lifepilot_schedule', JSON.stringify(schedule)); }, [schedule]);
+
+  // Derived state
+  const completedTasks = tasks.filter(t => t.status === 'completed');
+  
+  // Check for overdue tasks based on deadline
+  const now = new Date();
+  const overdueTasks = tasks.filter(t => {
+    if (t.status === 'completed') return false;
+    if (!t.deadline) return false;
+    return new Date(t.deadline) < now;
+  });
+
+  // Auto-update overdue status
   useEffect(() => {
-    if (firebaseUser) {
-      const userDoc = doc(db, 'users', firebaseUser.uid);
-      getDocFromServer(userDoc).then(snap => {
-        if (snap.exists()) {
-          setUserProfile(snap.data());
-        }
-      });
-    }
-  }, [firebaseUser]);
+    let changed = false;
+    const updatedTasks = tasks.map(t => {
+      if (t.status === 'pending' && t.deadline && new Date(t.deadline) < now) {
+        changed = true;
+        return { ...t, status: 'overdue' as const };
+      }
+      return t;
+    });
+    if (changed) setTasks(updatedTasks);
+  }, [tasks]);
 
-  useEffect(() => {
-    if (dbTasks) {
-      const tasks = dbTasks.docs.map(doc => ({ ...doc.data(), id: doc.id } as unknown as Mission));
-      setMissions(tasks);
-      setTimelineMatrix(tasks.filter(m => m.startTime && m.endTime).sort((a, b) => (a.startTime || '').localeCompare(b.startTime || '')));
-    }
-    if (dbHabits) setHabits(dbHabits.docs.map(doc => ({ ...doc.data(), id: doc.id } as unknown as Habit)));
-    if (dbGoals) setGoals(dbGoals.docs.map(doc => ({ ...doc.data(), id: doc.id })));
-    if (dbInsights) setInsights(dbInsights.docs.map(doc => ({ ...doc.data(), id: doc.id })));
-  }, [dbTasks, dbHabits, dbGoals, dbInsights]);
-
-  const [microReward, setMicroReward] = useState<string | null>(null);
-
-  const generateDayPlan = async () => {
-    if (!firebaseUser || missions.length === 0) return;
-
-    const behavioralContext = {
-      userProfile,
-      lifeState,
-      consistencySystem: habits.map(h => ({ title: h.title, streak: h.streak, current_count: h.current_count, goal_count: h.goal_count })),
-      motivationState,
-      currentTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+  const addTask = (task: Partial<Mission>) => {
+    const newTask: Mission = {
+      id: Math.random().toString(36).substr(2, 9),
+      title: task.title || 'New Task',
+      status: 'pending',
+      priority: task.priority || 'medium',
+      deadline: task.deadline,
+      duration: task.duration || 30,
+      category: task.category || 'General',
+      impact: task.impact || 'moderate',
+      urgency: task.urgency || 5,
+      importance: task.importance || 5,
+      is_habit: task.is_habit || false,
+      streak: task.streak || 0,
+      created_at: new Date().toISOString(),
+      ...task
     };
+    setTasks(prev => [...prev, newTask]);
+  };
 
-    const prompt = `As an AI Life Architect, create a high-performance schedule for today.
-    Tasks: ${JSON.stringify(missions.map(m => ({ id: m.id, title: m.title, duration: m.duration })))}
-    Context: ${JSON.stringify(behavioralContext)}
-    Return JSON array: [{ id, startTime, endTime }]. Use 24h format.`;
+  const completeTask = (taskId: string) => {
+    setTasks(prev => prev.map(t => 
+      t.id === taskId ? { ...t, status: 'completed', completed_at: new Date().toISOString() } : t
+    ));
+    setLifeScore(prev => prev + 5); // Arbitrary score increase
+  };
 
-    try {
-      const idToken = await firebaseUser.getIdToken();
-      const response = await fetch('/api/ai/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({
-          prompt,
-          systemInstruction: "You are an AI Life Architect. Optimize schedules for peak performance.",
-          taskType: 'complex'
-        })
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || 'AI generation failed');
-      }
-      const result = await response.json();
-      
-      let text = result.text || '[]';
-      const jsonMatch = text.match(/\[[\s\S]*\]/);
-      if (jsonMatch) text = jsonMatch[0];
-      const plan = JSON.parse(text);
-      
-      if (tasksRef && Array.isArray(plan)) {
-        const updates = plan.map(async (item) => {
-          if (item.id && item.startTime && item.endTime) {
-            const taskDoc = doc(tasksRef, item.id);
-            await setDoc(taskDoc, {
-              startTime: String(item.startTime),
-              endTime: String(item.endTime),
-              updated_at: new Date().toISOString()
-            }, { merge: true });
-          }
-        });
-        await Promise.all(updates);
-      }
-    } catch (err) {
-      console.error("AI Day Planning failed:", err);
+  const deleteTask = (taskId: string) => {
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+    if (currentFocusTask?.id === taskId) {
+      setCurrentFocusTask(null);
     }
   };
 
-  const generateAiInsights = async () => {
-    if (!firebaseUser) return;
-    const prompt = `Analyze user performance and provide 3 actionable insights.
-    State: ${JSON.stringify({ missions, habits, lifeState, motivationState })}
-    Return JSON array: [{ insight_text, type }].`;
-
-    try {
-      const idToken = await firebaseUser.getIdToken();
-      const response = await fetch('/api/ai/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({
-          prompt,
-          systemInstruction: "You are a performance analyst. Provide actionable life insights.",
-          taskType: 'simple'
-        })
-      });
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || 'AI generation failed');
-      }
-      const result = await response.json();
-      
-      let text = result.text || '[]';
-      const jsonMatch = text.match(/\[[\s\S]*\]/);
-      if (jsonMatch) text = jsonMatch[0];
-      const insightsList = JSON.parse(text);
-      if (insightsRef && Array.isArray(insightsList)) {
-        for (const insight of insightsList) {
-          await addDoc(insightsRef, {
-            ...insight,
-            user_id: firebaseUser.uid,
-            is_read: false,
-            created_at: new Date().toISOString()
-          });
-        }
-      }
-    } catch (err) {
-      console.error("AI Insights failed:", err);
-    }
+  const updateTask = (taskId: string, updates: Partial<Mission>) => {
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
   };
 
-  const handleAction = async (type: string, payload: any = {}) => {
-    if (!firebaseUser) return;
+  const setFocusTask = (task: Mission | null) => {
+    setCurrentFocusTask(task);
+  };
 
-    const sanitize = (obj: any) => {
-      if (!obj || typeof obj !== 'object') return {};
-      const newObj: any = {};
-      const allowed = [
-        'id', 'title', 'importance', 'urgency_score', 'estimated_effort', 'impact_level', 
-        'duration', 'deadline', 'category', 'status', 'is_habit', 'streak', 
-        'completed_at', 'created_at', 'startTime', 'endTime', 'updated_at', 'data',
-        'firebase_uid', 'email', 'subscription_plan', 'role', 'trial_used',
-        'description', 'frequency', 'goal_count', 'current_count', 'last_completed_at',
-        'type', 'target_date', 'start_time', 'end_time', 'duration_minutes', 
-        'distractions_count', 'efficiency_score', 'insight_text', 'is_read', 'task',
-        'user_id'
-      ];
-      Object.keys(obj).forEach(key => {
-        if (allowed.includes(key) && obj[key] !== undefined) {
-          newObj[key] = obj[key];
-        }
-      });
-      return newObj;
-    };
+  const updateLifeScore = (score: number) => setLifeScore(score);
+  const updateStreak = (newStreak: number) => setStreak(newStreak);
 
-    const cleanPayload = sanitize(payload);
-
+  const generateSchedule = async () => {
     try {
-      switch (type) {
-        case 'ADD_TASK': {
-          if (!tasksRef) return;
-          await addDoc(tasksRef, {
-            ...cleanPayload,
-            user_id: firebaseUser.uid,
-            status: 'pending',
-            created_at: new Date().toISOString(),
-            streak: 0,
-            is_habit: cleanPayload.is_habit || false
-          });
-          confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
-          break;
-        }
-        case 'COMPLETE_TASK': {
-          if (!tasksRef) return;
-          const taskDoc = doc(tasksRef, cleanPayload.id);
-          await setDoc(taskDoc, {
-            status: 'completed',
-            completed_at: new Date().toISOString(),
-            streak: (cleanPayload.streak || 0) + 1
-          }, { merge: true });
-          
-          const newScore = await updateDailyScore(firebaseUser.uid, missions, 0);
-          setDailyScore(newScore);
-          
-          const msg = MOTIVATION_MESSAGES.REWARDS[Math.floor(Math.random() * MOTIVATION_MESSAGES.REWARDS.length)];
-          setMicroReward(msg);
-          setTimeout(() => setMicroReward(null), 3000);
-
-          confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-          break;
-        }
-        case 'UPDATE_TASK': {
-          if (!tasksRef) return;
-          const taskDoc = doc(tasksRef, cleanPayload.id);
-          await setDoc(taskDoc, {
-            ...sanitize(cleanPayload.data || {}),
-            updated_at: new Date().toISOString()
-          }, { merge: true });
-          break;
-        }
-        case 'DELETE_TASK': {
-          if (!tasksRef) return;
-          await deleteDoc(doc(tasksRef, cleanPayload.id));
-          break;
-        }
-        case 'START_FOCUS': {
-          setFocusTask(cleanPayload.task);
-          break;
-        }
-        case 'STOP_FOCUS': {
-          setFocusTask(null);
-          break;
-        }
-        case 'TOGGLE_HABIT': {
-          if (!habitsRef) return;
-          const habitDoc = doc(habitsRef, cleanPayload.id);
-          await updateDoc(habitDoc, {
-            current_count: (cleanPayload.current_count || 0) + 1,
-            last_completed_at: new Date().toISOString(),
-            streak: (cleanPayload.streak || 0) + 1
-          });
-          confetti({ particleCount: 40, spread: 50, origin: { y: 0.7 } });
-          break;
-        }
-        case 'ADD_HABIT': {
-          if (!habitsRef) return;
-          await addDoc(habitsRef, {
-            ...cleanPayload,
-            user_id: firebaseUser.uid,
-            current_count: 0,
-            streak: 0,
-            created_at: new Date().toISOString()
-          });
-          break;
-        }
-        case 'DELETE_HABIT': {
-          if (!habitsRef) return;
-          await deleteDoc(doc(habitsRef, cleanPayload.id));
-          break;
-        }
-        case 'UPDATE_HABIT': {
-          if (!habitsRef) return;
-          const habitDoc = doc(habitsRef, cleanPayload.id);
-          await updateDoc(habitDoc, {
-            ...cleanPayload,
-            updated_at: new Date().toISOString()
-          });
-          break;
-        }
+      const newSchedule = await generateScheduleWithAI(tasks);
+      if (newSchedule && newSchedule.length > 0) {
+        setSchedule(newSchedule);
       }
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, type);
+    } catch (error) {
+      console.error("Failed to generate schedule:", error);
     }
   };
 
   return (
-    <AppContext.Provider value={{ 
-      missions, 
-      habits, 
-      goals, 
-      insights, 
-      lifeState, 
-      setLifeState,
-      motivationState,
-      setMotivationState,
-      dailyScore,
-      setDailyScore,
-      focusTask,
+    <AppContext.Provider value={{
+      tasks,
+      completedTasks,
+      overdueTasks,
+      currentFocusTask,
+      lifeScore,
+      streak,
+      schedule,
+      addTask,
+      completeTask,
+      deleteTask,
+      updateTask,
       setFocusTask,
-      timelineMatrix,
-      loading: tasksLoading || habitsLoading,
-      handleAction,
-      microReward,
-      generateDayPlan,
-      generateAiInsights,
-      userProfile
+      updateLifeScore,
+      updateStreak,
+      generateSchedule
     }}>
       {children}
     </AppContext.Provider>

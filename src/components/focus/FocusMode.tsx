@@ -55,20 +55,32 @@ export const FocusMode: React.FC<FocusModeProps> = ({ task, onClose }) => {
       
       <div className="w-full max-w-3xl space-y-12 text-center relative z-10">
         <motion.div 
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
+          variants={theme.motion.variants.container}
+          initial="hidden"
+          animate="show"
           className="space-y-4"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-black uppercase tracking-[0.3em]">
+          <motion.div 
+            variants={theme.motion.variants.item}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-black uppercase tracking-[0.3em]"
+          >
             <div className="size-2 rounded-full bg-primary animate-ping" />
             Focus Protocol Active
-          </div>
-          <h2 className="text-5xl md:text-8xl font-black tracking-tighter text-text_primary drop-shadow-2xl">
+          </motion.div>
+          <motion.h2 
+            variants={theme.motion.variants.item}
+            className="text-5xl md:text-8xl font-black tracking-tighter text-text_primary drop-shadow-2xl"
+          >
             {task.title}
-          </h2>
+          </motion.h2>
         </motion.div>
         
-        <div className="relative size-80 md:size-[450px] mx-auto flex items-center justify-center">
+        <motion.div 
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ ...theme.motion.transition, delay: 0.2 }}
+          className="relative size-80 md:size-[450px] mx-auto flex items-center justify-center"
+        >
           <svg className="absolute inset-0 size-full -rotate-90">
             <circle
               cx="50%"
@@ -100,46 +112,75 @@ export const FocusMode: React.FC<FocusModeProps> = ({ task, onClose }) => {
               Remaining Matrix
             </div>
           </div>
-        </div>
+        </motion.div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
-          <div className="glass-card p-8 bg-surface border-border flex flex-col items-center justify-center gap-2">
+        <motion.div 
+          variants={theme.motion.variants.container}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto"
+        >
+          <motion.div 
+            variants={theme.motion.variants.item}
+            whileHover={theme.motion.hover}
+            className="glass-card p-8 bg-surface border-border flex flex-col items-center justify-center gap-2"
+          >
             <div className="text-xs font-black uppercase tracking-widest text-text_secondary">Distractions Logged</div>
             <div className="text-4xl font-black text-primary">{distractions}</div>
-            <button 
+            <motion.button 
+              whileHover={theme.motion.hover}
+              whileTap={theme.motion.tap}
               onClick={() => setDistractions(d => d + 1)}
               className="mt-3 px-6 py-3 rounded-xl bg-surface hover:bg-surface/80 text-xs font-black uppercase tracking-widest text-text_primary transition-all border border-border"
             >
               Log Distraction
-            </button>
-          </div>
-          <div className="glass-card p-8 bg-surface border-border flex flex-col items-center justify-center gap-2">
+            </motion.button>
+          </motion.div>
+          <motion.div 
+            variants={theme.motion.variants.item}
+            whileHover={theme.motion.hover}
+            className="glass-card p-8 bg-surface border-border flex flex-col items-center justify-center gap-2"
+          >
             <div className="text-xs font-black uppercase tracking-widest text-text_secondary">Current Efficiency</div>
             <div className="text-4xl font-black text-secondary">98.4%</div>
             <div className="text-xs font-bold text-text_secondary uppercase tracking-widest">Optimal Flow State</div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
         
-        <div className="flex flex-wrap items-center justify-center gap-6 pt-12">
-          <button 
+        <motion.div 
+          variants={theme.motion.variants.container}
+          initial="hidden"
+          animate="show"
+          className="flex flex-wrap items-center justify-center gap-6 pt-12"
+        >
+          <motion.button 
+            variants={theme.motion.variants.item}
+            whileHover={{ scale: 1.1, shadow: "0 0 70px var(--color-text-primary)" }}
+            whileTap={{ scale: 0.9 }}
             onClick={() => setIsActive(!isActive)}
             className="size-24 md:size-28 rounded-full bg-text_primary text-background flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-[0_0_50px_var(--color-text-primary)]"
           >
             {isActive ? <Pause size={40} fill="currentColor" /> : <Play size={40} fill="currentColor" className="ml-1" />}
-          </button>
-          <button 
+          </motion.button>
+          <motion.button 
+            variants={theme.motion.variants.item}
+            whileHover={{ scale: 1.05, backgroundColor: "rgba(239, 68, 68, 0.2)", color: "rgb(239, 68, 68)" }}
+            whileTap={{ scale: 0.95 }}
             onClick={onCancel}
             className="px-10 md:px-14 py-5 md:py-7 bg-surface text-text_secondary font-black uppercase tracking-widest rounded-2xl hover:bg-danger/20 hover:text-danger transition-all border border-border"
           >
             Abort Protocol
-          </button>
-          <button 
+          </motion.button>
+          <motion.button 
+            variants={theme.motion.variants.item}
+            whileHover={{ scale: 1.05, shadow: "0 0 40px var(--color-primary)" }}
+            whileTap={{ scale: 0.95 }}
             onClick={onComplete}
             className="px-10 md:px-14 py-5 md:py-7 bg-primary text-black font-black uppercase tracking-widest rounded-2xl hover:scale-105 transition-all shadow-2xl shadow-primary/30"
           >
             Mission Complete
-          </button>
-        </div>
+          </motion.button>
+        </motion.div>
       </div>
     </div>
   );

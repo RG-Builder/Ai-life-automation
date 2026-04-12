@@ -19,20 +19,25 @@ export const SelfAwareness: React.FC = () => {
   return (
     <motion.div 
       key="analytics"
-      initial={theme.animations.type !== 'minimal' ? { opacity: 0, y: 10 } : { opacity: 1 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
+      variants={theme.motion.variants.container}
+      initial="hidden"
+      animate="show"
+      exit="hidden"
       className="space-y-8 sm:space-y-12 pb-32"
     >
-      <div>
+      <motion.div variants={theme.motion.variants.item}>
         <h2 className={`text-2xl md:text-5xl font-black tracking-tighter text-text_primary`}>{theme.wording.awareness}</h2>
         <p className="text-text_secondary text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] mt-2">
           {theme.id === 'elite' ? 'Neural Performance Analytics & Feedback' : 'Understand your patterns and improve.'}
         </p>
-      </div>
+      </motion.div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div className="stitch-card p-8 space-y-6">
+        <motion.div 
+          variants={theme.motion.variants.item}
+          whileHover={theme.motion.hover}
+          className="stitch-card p-8 space-y-6"
+        >
           <div className="flex items-center gap-4">
             <div className="size-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
               <Brain size={24} />
@@ -53,9 +58,13 @@ export const SelfAwareness: React.FC = () => {
               className="h-full bg-primary"
             />
           </div>
-        </div>
+        </motion.div>
 
-        <div className="stitch-card p-8 space-y-6">
+        <motion.div 
+          variants={theme.motion.variants.item}
+          whileHover={theme.motion.hover}
+          className="stitch-card p-8 space-y-6"
+        >
           <div className="flex items-center gap-4">
             <div className="size-12 rounded-2xl bg-secondary/10 flex items-center justify-center text-secondary">
               <Activity size={24} />
@@ -76,10 +85,10 @@ export const SelfAwareness: React.FC = () => {
               className="h-full bg-secondary"
             />
           </div>
-        </div>
+        </motion.div>
       </div>
 
-      <div className="stitch-card p-8">
+      <motion.div variants={theme.motion.variants.item} className="stitch-card p-8">
         <h3 className="text-xl font-black tracking-tight text-text_primary mb-8">Performance Matrix</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
           <div className="space-y-2">
@@ -99,7 +108,7 @@ export const SelfAwareness: React.FC = () => {
             <div className="text-3xl font-black text-primary">{selfAwareness?.productivityScore || 0}</div>
           </div>
         </div>
-      </div>
+      </motion.div>
     </motion.div>
   );
 };

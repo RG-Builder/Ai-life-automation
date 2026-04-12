@@ -56,49 +56,58 @@ export const HabitsView: React.FC = () => {
   return (
     <motion.div 
       key="habits"
-      initial={theme.animations.type !== 'minimal' ? { opacity: 0, y: 10 } : { opacity: 1 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
+      variants={theme.motion.variants.container}
+      initial="hidden"
+      animate="show"
+      exit="hidden"
       className="space-y-8 md:space-y-12 pb-32"
     >
-      <div className="flex items-center justify-between">
+      <motion.div variants={theme.motion.variants.item} className="flex items-center justify-between">
         <div className="space-y-2">
           <h2 className={`text-3xl sm:text-5xl font-black tracking-tighter text-text_primary`}>Consistency <span className="text-primary">Protocols</span></h2>
           <p className="text-text_secondary text-[10px] font-black uppercase tracking-[0.3em]">
             {theme.id === 'elite' ? 'Neural Habit Forge & Reinforcement' : 'Build routines that actually stick.'}
           </p>
         </div>
-        <button 
+        <motion.button 
+          whileHover={theme.motion.hover}
+          whileTap={theme.motion.tap}
           onClick={() => { resetHabitForm(); setShowHabitModal(true); }}
           className="size-12 rounded-2xl bg-primary text-black flex items-center justify-center shadow-lg shadow-primary/20 hover:scale-110 transition-all"
         >
           <Plus size={24} />
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
 
-      <div className="grid grid-cols-1 gap-6">
+      <motion.div variants={theme.motion.variants.container} className="grid grid-cols-1 gap-6">
         {habits.map(habit => (
-          <HabitCard 
-            key={habit.id} 
-            habit={habit} 
-            editHabit={editHabit} 
-            handleAction={handleAction} 
-          />
+          <motion.div key={habit.id} variants={theme.motion.variants.item}>
+            <HabitCard 
+              habit={habit} 
+              editHabit={editHabit} 
+              handleAction={handleAction} 
+            />
+          </motion.div>
         ))}
 
         {habits.length === 0 && (
-          <div className="p-12 md:p-24 text-center border border-dashed border-border rounded-[32px] md:rounded-[48px] bg-surface/50">
+          <motion.div 
+            variants={theme.motion.variants.item}
+            className="p-12 md:p-24 text-center border border-dashed border-border rounded-[32px] md:rounded-[48px] bg-surface/50"
+          >
             <Dumbbell size={48} className="mx-auto mb-6 opacity-10 text-text_secondary" />
             <p className="font-black uppercase tracking-[0.3em] text-[10px] md:text-sm text-text_secondary">No consistency protocols active</p>
-            <button 
+            <motion.button 
+              whileHover={theme.motion.hover}
+              whileTap={theme.motion.tap}
               onClick={() => { resetHabitForm(); setShowHabitModal(true); }}
               className="mt-6 px-8 py-4 bg-primary/10 text-primary rounded-xl font-black uppercase tracking-widest text-xs hover:bg-primary/20 transition-all"
             >
               Initialize First Protocol
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
         )}
-      </div>
+      </motion.div>
 
       <AnimatePresence>
         {showHabitModal && (
@@ -174,12 +183,14 @@ export const HabitsView: React.FC = () => {
                     </select>
                   </div>
 
-                  <button 
+                  <motion.button 
+                    whileHover={theme.motion.hover}
+                    whileTap={theme.motion.tap}
                     type="submit"
                     className="w-full py-5 bg-primary text-black rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:brightness-110 active:scale-[0.98] transition-all"
                   >
                     {editingHabit ? 'Update Protocol' : 'Deploy Protocol'}
-                  </button>
+                  </motion.button>
                 </form>
               </div>
             </motion.div>

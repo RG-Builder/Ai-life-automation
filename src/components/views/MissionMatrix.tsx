@@ -58,12 +58,13 @@ export const MissionMatrix: React.FC = () => {
   return (
     <motion.div 
       key="tasks"
-      initial={theme.animations.type !== 'minimal' ? { opacity: 0, y: 10 } : { opacity: 1 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
+      variants={theme.motion.variants.container}
+      initial="hidden"
+      animate="show"
+      exit="hidden"
       className="space-y-8 md:space-y-12 pb-32"
     >
-      <div className="flex flex-col gap-6 md:gap-8">
+      <motion.div variants={theme.motion.variants.item} className="flex flex-col gap-6 md:gap-8">
         <div>
           <h2 className={`text-2xl md:text-5xl font-black tracking-tighter text-text_primary`}>{theme.wording.missions}</h2>
           <p className="text-text_secondary text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em] mt-2">
@@ -72,26 +73,35 @@ export const MissionMatrix: React.FC = () => {
         </div>
         <div className={`flex p-1.5 rounded-[20px] md:rounded-[24px] border overflow-x-auto no-scrollbar bg-surface border-border`}>
           {(['all', 'pending', 'completed', 'overdue'] as const).map(f => (
-            <button 
+            <motion.button 
               key={f}
+              whileHover={theme.motion.hover}
+              whileTap={theme.motion.tap}
               onClick={() => setTaskFilter(f)}
               className={`px-4 md:px-8 py-2 md:py-3.5 rounded-[16px] md:rounded-[18px] text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${taskFilter === f ? 'bg-primary text-black shadow-xl shadow-primary/20' : 'text-text_secondary hover:text-text_primary'}`}
             >
               {f}
-            </button>
+            </motion.button>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       <div className="space-y-8 md:space-y-10">
-        <form onSubmit={saveMission} className="stitch-card p-4 md:p-10 space-y-6 md:space-y-8 border-border relative overflow-hidden">
+        <motion.form 
+          variants={theme.motion.variants.item}
+          onSubmit={saveMission} 
+          className="stitch-card p-4 md:p-10 space-y-6 md:space-y-8 border-border relative overflow-hidden"
+        >
           <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none text-text_secondary">
             <Zap size={120} />
           </div>
           <div className="flex items-center gap-4 relative z-10">
-            <div className={`size-10 md:size-12 rounded-xl md:rounded-2xl flex items-center justify-center shadow-inner ${editingMission ? 'bg-danger/10 text-danger' : 'bg-primary/10 text-primary'}`}>
+            <motion.div 
+              animate={editingMission ? { rotate: [0, 10, -10, 0] } : {}}
+              className={`size-10 md:size-12 rounded-xl md:rounded-2xl flex items-center justify-center shadow-inner ${editingMission ? 'bg-danger/10 text-danger' : 'bg-primary/10 text-primary'}`}
+            >
               {editingMission ? <Zap size={20} className="md:size-[24px]" /> : <Plus size={20} className="md:size-[24px]" />}
-            </div>
+            </motion.div>
             <h3 className={`text-lg md:text-2xl font-black tracking-tight text-text_primary`}>
               {editingMission ? (theme.id === 'elite' ? 'Refine Mission' : 'Edit Task') : (theme.id === 'elite' ? 'Initialize Mission' : 'New Task')}
             </h3>
@@ -199,27 +209,31 @@ export const MissionMatrix: React.FC = () => {
               </motion.p>
             )}
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <button 
+              <motion.button 
+                whileHover={theme.motion.hover}
+                whileTap={theme.motion.tap}
                 type="submit"
                 disabled={loading}
                 className="flex-1 py-4 md:py-6 bg-primary text-black rounded-xl md:rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50"
               >
                 {loading ? 'Processing...' : editingMission ? (theme.id === 'elite' ? 'Update Mission' : 'Save Changes') : (theme.id === 'elite' ? 'Deploy Mission' : 'Add Task')}
-              </button>
+              </motion.button>
               {editingMission && (
-                <button 
+                <motion.button 
+                  whileHover={theme.motion.hover}
+                  whileTap={theme.motion.tap}
                   type="button"
                   onClick={resetForm}
                   className="px-8 py-4 md:py-6 bg-surface border border-border text-text_secondary rounded-xl md:rounded-2xl font-black uppercase tracking-widest hover:bg-danger/10 hover:text-danger transition-all"
                 >
                   Cancel
-                </button>
+                </motion.button>
               )}
             </div>
           </div>
-        </form>
+        </motion.form>
 
-        <div className="space-y-5">
+        <motion.div variants={theme.motion.variants.container} className="space-y-5">
           {missions
             .filter(m => {
               if (taskFilter === 'all') return true;
@@ -229,9 +243,11 @@ export const MissionMatrix: React.FC = () => {
               return true;
             })
             .map((mission: Mission) => (
-              <MissionCard key={mission.id} mission={mission} theme={theme} handleAction={handleAction} />
+              <motion.div key={mission.id} variants={theme.motion.variants.item}>
+                <MissionCard mission={mission} theme={theme} handleAction={handleAction} />
+              </motion.div>
             ))}
-        </div>
+        </motion.div>
       </div>
     </motion.div>
   );

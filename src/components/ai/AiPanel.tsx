@@ -6,6 +6,8 @@ import { useAppContext } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAI } from '../../hooks/useAI';
 
+import { useTheme } from '../../theme';
+
 interface AiPanelProps {
   onClose: () => void;
 }
@@ -13,6 +15,7 @@ interface AiPanelProps {
 export const AiPanel: React.FC<AiPanelProps> = ({ onClose }) => {
   const { missions, habits, userProfile } = useAppContext();
   const { user } = useAuth();
+  const { theme } = useTheme();
   const { generate } = useAI();
   const [query, setQuery] = useState('');
   const [chat, setChat] = useState<{ role: 'user' | 'ai', text: string }[]>([]);
@@ -46,21 +49,31 @@ export const AiPanel: React.FC<AiPanelProps> = ({ onClose }) => {
       initial={{ x: '100%' }}
       animate={{ x: 0 }}
       exit={{ x: '100%' }}
+      transition={theme.motion.transition}
       className="fixed inset-y-0 right-0 w-full max-w-md bg-background border-l border-border z-[150] shadow-2xl flex flex-col"
     >
       <div className="p-6 border-b border-border flex items-center justify-between bg-surface">
         <div className="flex items-center gap-3">
-          <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+          <motion.div 
+            whileHover={{ rotate: 360 }}
+            transition={{ duration: 1 }}
+            className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary"
+          >
             <Brain size={24} />
-          </div>
+          </motion.div>
           <div>
             <h3 className="text-lg font-black tracking-tighter text-text_primary">AI Architect</h3>
             <p className="text-[10px] font-black uppercase tracking-widest text-primary">Neural Sync Active</p>
           </div>
         </div>
-        <button onClick={onClose} className="text-text_secondary hover:text-text_primary">
+        <motion.button 
+          whileHover={theme.motion.hover}
+          whileTap={theme.motion.tap}
+          onClick={onClose} 
+          className="text-text_secondary hover:text-text_primary"
+        >
           <X size={24} />
-        </button>
+        </motion.button>
       </div>
       
       <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
@@ -71,11 +84,16 @@ export const AiPanel: React.FC<AiPanelProps> = ({ onClose }) => {
           </div>
         )}
         {chat.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          <motion.div 
+            key={i} 
+            initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+          >
             <div className={`max-w-[85%] p-4 rounded-2xl font-medium text-sm leading-relaxed ${msg.role === 'user' ? 'bg-primary text-black' : 'bg-surface border border-border text-text_primary'}`}>
               {msg.text}
             </div>
-          </div>
+          </motion.div>
         ))}
         {isGenerating && (
           <div className="flex justify-start">
@@ -98,12 +116,14 @@ export const AiPanel: React.FC<AiPanelProps> = ({ onClose }) => {
             placeholder="Ask your AI Architect..."
             className="w-full bg-background border border-border rounded-xl px-4 py-4 pr-12 outline-none focus:border-primary transition-all font-bold text-text_primary"
           />
-          <button 
+          <motion.button 
+            whileHover={theme.motion.hover}
+            whileTap={theme.motion.tap}
             onClick={askAi}
             className="absolute right-2 top-1/2 -translate-y-1/2 size-10 bg-primary text-black rounded-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
           >
             <ArrowRight size={20} />
-          </button>
+          </motion.button>
         </div>
       </div>
     </motion.div>
