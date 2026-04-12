@@ -31,10 +31,13 @@ import { rateLimit } from 'express-rate-limit';
 import axios from "axios";
 import validator from "validator";
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { OpenRouter } from "@openrouter/sdk";
+import { getFirestore } from "firebase-admin/firestore";
 
 dotenv.config();
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
   // Initialize Firebase Admin
   let firebaseAdminInitialized = false;
@@ -66,12 +69,16 @@ dotenv.config();
 
           const serviceAccount = JSON.parse(saString);
           if (serviceAccount && serviceAccount.project_id && serviceAccount.private_key) {
-            admin.initializeApp({
+            const adminApp = admin.initializeApp({
               credential: admin.credential.cert(serviceAccount)
             });
-            console.log("✅ Firebase Admin initialized successfully for project:", serviceAccount.project_id);
             firebaseAdminInitialized = true;
-            db = admin.firestore();
+            
+            // Use FIREBASE_DATABASE_ID if provided, otherwise default to '(default)'
+            const databaseId = process.env.FIREBASE_DATABASE_ID || undefined;
+            console.log(`✅ Firebase Admin initialized for project: ${serviceAccount.project_id}, Database: ${databaseId || '(default)'}`);
+            
+            db = getFirestore(adminApp, databaseId);
           }
         }
       } catch (e: any) {
@@ -314,56 +321,71 @@ async function startServer() {
 
   // AI Gateway Logic
   const AI_MODELS = {
-    PRIMARY: "google/gemma-2-27b-it", // Using a valid OpenRouter model for primary
-    FAST: "google/gemma-3n-e2b-it:free"
+    PRIMARY: "gemini-3.1-pro-preview",
+    FAST: "gemini-3-flash-preview"
   };
 
-  const handle_ai_request = async (user: any, prompt: string, taskType: 'simple' | 'complex' = 'simple', systemInstruction: string = "You are a helpful assistant.") => {
+  const LIFE_PILOT_SYSTEM_PROMPT = `
+You are the AI orchestration layer for "Life Pilot".
+Your goal: Deliver fast, intelligent, and reliable responses.
+
+RESPONSE STANDARD:
+1. Next Action (Required)
+2. Schedule (Optional, if relevant)
+3. Insight (Optional, if relevant)
+
+Keep responses: Short, actionable, and clear.
+Use user data (tasks, deadlines, history) when provided.
+If data is missing, make reasonable assumptions and still provide useful output.
+Do NOT mention which model you are using.
+`;
+
+  const handle_ai_request = async (user: any, prompt: string, taskType: 'simple' | 'complex' = 'simple', systemInstruction: string = "") => {
     const userId = user.id;
     const plan = user.subscription_plan;
 
-    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+    const fullSystemInstruction = `${LIFE_PILOT_SYSTEM_PROMPT}\n${systemInstruction}`;
 
     // 3. Model Routing Logic
-    const selectedModel = taskType === 'simple' ? AI_MODELS.FAST : AI_MODELS.PRIMARY;
+    // If task involves planning, constraints, or optimization, use THINKING MODEL
+    const isThinkingTask = taskType === 'complex' || 
+                           prompt.toLowerCase().includes('plan') || 
+                           prompt.toLowerCase().includes('schedule') || 
+                           prompt.toLowerCase().includes('optimize') ||
+                           prompt.toLowerCase().includes('constraint') ||
+                           prompt.toLowerCase().includes('prioritize');
+    
+    const selectedModel = isThinkingTask ? AI_MODELS.PRIMARY : AI_MODELS.FAST;
 
-    const callAI = async (model: string) => {
-      if (!OPENROUTER_API_KEY) {
-        throw new Error("AI service configuration error: OpenRouter API key is missing. Please add it in the Secrets panel.");
+    const callAI = async (model: string, retryCount = 0): Promise<any> => {
+      if (!process.env.GEMINI_API_KEY) {
+        throw new Error("AI service configuration error: GEMINI_API_KEY is missing. Please add it in the Secrets panel.");
       }
-      const openrouter = new OpenRouter({
-        apiKey: OPENROUTER_API_KEY
-      });
       
-      const stream = await openrouter.chat.send({
-        chatGenerationParams: {
+      try {
+        const response = await ai.models.generateContent({
           model: model,
-          messages: [
-            { role: "system", content: systemInstruction },
-            { role: "user", content: prompt }
-          ],
-          stream: true
-        }
-      });
+          contents: prompt,
+          config: {
+            systemInstruction: fullSystemInstruction,
+          }
+        });
 
-      let responseText = "";
-      let reasoningTokens = 0;
-      for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content;
-        if (content) {
-          responseText += content;
+        return {
+          text: response.text || "",
+          usage: null,
+          model: model,
+          reasoningTokens: 0
+        };
+      } catch (err: any) {
+        console.error(`AI Model ${model} failed (Attempt ${retryCount + 1}):`, err.message);
+        
+        // Retry once on the same model if it's a transient error
+        if (retryCount < 1) {
+          return await callAI(model, retryCount + 1);
         }
-        if (chunk.usage) {
-          reasoningTokens = (chunk.usage as any).reasoningTokens || 0;
-        }
+        throw err;
       }
-
-      return {
-        text: responseText,
-        usage: null,
-        model: model,
-        reasoningTokens
-      };
     };
 
     const callAIWithFallback = async () => {
@@ -371,14 +393,28 @@ async function startServer() {
         console.log(`Calling AI Model: ${selectedModel} for user ${userId} (Task: ${taskType})`);
         return await callAI(selectedModel);
       } catch (err: any) {
-        console.error(`AI Model ${selectedModel} failed:`, err.message);
-        
         // Fallback chain: PRIMARY -> FAST
         if (selectedModel === AI_MODELS.PRIMARY) {
-          console.warn(`Falling back to FAST model: ${AI_MODELS.FAST}`);
-          return await callAI(AI_MODELS.FAST);
+          console.warn(`Falling back to FAST model: ${AI_MODELS.FAST} due to error: ${err.message}`);
+          try {
+            return await callAI(AI_MODELS.FAST);
+          } catch (fastErr: any) {
+            console.error("FAST model also failed. Returning simplified response.");
+            return {
+              text: "Next Action: Take a deep breath and focus on your most important task.\n\nInsight: I'm currently operating in offline mode, but I'm still here to help you stay on track.",
+              usage: null,
+              model: "static-fallback",
+              reasoningTokens: 0
+            };
+          }
         } else {
-          throw err; // Re-throw if the FAST model itself failed
+          console.error("AI model failed. Returning simplified response.");
+          return {
+            text: "Next Action: Focus on your current priority.\n\nInsight: AI systems are temporarily limited, but your productivity doesn't have to be.",
+            usage: null,
+            model: "static-fallback",
+            reasoningTokens: 0
+          };
         }
       }
     };
