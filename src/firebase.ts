@@ -2,27 +2,15 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { initializeFirestore, getDocFromServer, doc } from 'firebase/firestore';
 
-// Mock Firebase configuration since config file was deleted
-const firebaseConfigData = {
-  apiKey: "mock-api-key",
-  authDomain: "mock-auth-domain",
-  projectId: "mock-project-id",
-  appId: "mock-app-id",
-  firestoreDatabaseId: "mock-database-id",
-  storageBucket: "mock-storage-bucket",
-  messagingSenderId: "mock-sender-id",
-  measurementId: "mock-measurement-id"
-};
-
 const firebaseConfig = {
-  apiKey: firebaseConfigData.apiKey,
-  authDomain: firebaseConfigData.authDomain,
-  projectId: firebaseConfigData.projectId,
-  appId: firebaseConfigData.appId,
-  databaseId: firebaseConfigData.firestoreDatabaseId,
-  storageBucket: firebaseConfigData.storageBucket,
-  messagingSenderId: firebaseConfigData.messagingSenderId,
-  measurementId: firebaseConfigData.measurementId,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "mock-api-key",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "mock-auth-domain",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "mock-project-id",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "mock-app-id",
+  databaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || "mock-database-id",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "mock-storage-bucket",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "mock-sender-id",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "mock-measurement-id",
 };
 
 console.log("🔥 Firebase initializing...");

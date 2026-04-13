@@ -9,8 +9,8 @@ interface State {
   error: Error | null;
 }
 
-class ErrorBoundary extends (React.Component as any) {
-  constructor(props: any) {
+class ErrorBoundary extends React.Component<Props, State> {
+  constructor(props: Props) {
     super(props);
     this.state = {
       hasError: false,
@@ -18,7 +18,7 @@ class ErrorBoundary extends (React.Component as any) {
     };
   }
 
-  public static getDerivedStateFromError(error: Error): any {
+  public static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
@@ -27,12 +27,12 @@ class ErrorBoundary extends (React.Component as any) {
   }
 
   public render() {
-    if ((this.state as any).hasError) {
+    if (this.state.hasError) {
       let errorMessage = "An unexpected error occurred.";
       
       // Check if it's a Firestore permission error
       try {
-        const errorObj = JSON.parse((this.state as any).error?.message || "{}");
+        const errorObj = JSON.parse(this.state.error?.message || "{}");
         if (errorObj.error && errorObj.error.includes("Missing or insufficient permissions")) {
           errorMessage = "You don't have permission to perform this action. Please check your login status.";
         }
@@ -59,7 +59,7 @@ class ErrorBoundary extends (React.Component as any) {
       );
     }
 
-    return (this.props as any).children;
+    return this.props.children;
   }
 }
 

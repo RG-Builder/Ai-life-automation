@@ -18,7 +18,12 @@ console.warn = function(...args) {
   originalWarn.apply(console, args);
 };
 
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
+import aiRoutes from "./src/server/routes/ai";
+import authRoutes from "./src/server/routes/auth";
+import paymentRoutes from "./src/server/routes/payments";
+import adminRoutes from "./src/server/routes/admin";
+
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -36,9 +41,40 @@ import { rateLimit } from 'express-rate-limit';
 import axios from "axios";
 import validator from "validator";
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  subscription_plan: string;
+  role: string;
+  trial_used: number;
+  [key: string]: any;
+}
+
+export interface AuthenticatedRequest extends Request {
+  user?: AuthUser;
+}
+
 import { getFirestore } from "firebase-admin/firestore";
 
 dotenv.config();
+
+// Environment Variable Validation
+const requiredEnvVars = [
+  'JWT_SECRET',
+  'OPENROUTER_API_KEY'
+];
+
+if (process.env.NODE_ENV === 'production') {
+  const missingVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+  if (missingVars.length > 0) {
+    console.error(`❌ FATAL ERROR: Missing required environment variables in production: ${missingVars.join(', ')}`);
+    process.exit(1);
+  }
+  if (process.env.JWT_SECRET === 'dev_secret_only') {
+    console.error(`❌ FATAL ERROR: Using development JWT_SECRET in production!`);
+    process.exit(1);
+  }
+}
 
   // Initialize Firebase Admin
   let firebaseAdminInitialized = false;
@@ -101,9 +137,10 @@ dotenv.config();
             try {
               await db.collection('_health_check_').limit(1).get();
               console.log("✅ Firestore database access verified");
-            } catch (err: any) {
-              const isNotFoundError = err.message.includes('NOT_FOUND');
-              const isPermissionError = err.message.includes('PERMISSION_DENIED');
+            } catch (err: unknown) {
+              const error = err as Error;
+              const isNotFoundError = error.message.includes('NOT_FOUND');
+              const isPermissionError = error.message.includes('PERMISSION_DENIED');
               
               if ((isPermissionError || isNotFoundError) && databaseId) {
                 console.warn(`⚠️ ${isNotFoundError ? 'NOT_FOUND' : 'PERMISSION_DENIED'} on database ${databaseId}. Falling back to (default) database.`);
@@ -111,24 +148,27 @@ dotenv.config();
                 try {
                   await db.collection('_health_check_').limit(1).get();
                   console.log("✅ Firestore fallback to (default) database successful");
-                } catch (fallbackErr: any) {
-                  console.warn(`⚠️ (default) database also failed: ${fallbackErr.message}. Trying projectId as databaseId.`);
+                } catch (fallbackErr: unknown) {
+                  const fErr = fallbackErr as Error;
+                  console.warn(`⚠️ (default) database also failed: ${fErr.message}. Trying projectId as databaseId.`);
                   db = getFirestore(adminApp, serviceAccount.project_id);
                   try {
                     await db.collection('_health_check_').limit(1).get();
                     console.log(`✅ Firestore fallback to projectId ${serviceAccount.project_id} successful`);
-                  } catch (projectErr: any) {
-                    console.error("❌ All Firestore initialization attempts failed:", projectErr.message);
+                  } catch (projectErr: unknown) {
+                    const pErr = projectErr as Error;
+                    console.error("❌ All Firestore initialization attempts failed:", pErr.message);
                   }
                 }
               } else {
-                console.error("❌ Firestore initial health check failed:", err.message);
+                console.error("❌ Firestore initial health check failed:", error.message);
               }
             }
           }
         }
-      } catch (e: any) {
-        console.error("❌ Firebase Admin initialization failed:", e.message);
+      } catch (e: unknown) {
+        const error = e as Error;
+        console.error("❌ Firebase Admin initialization failed:", error.message);
         console.error("Raw string length:", (process.env.FIREBASE_SERVICE_ACCOUNT || "").length);
       }
   } else {
@@ -152,7 +192,7 @@ async function startServer() {
   // Global Rate Limiting
   const globalLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute
-    max: 100, // Limit each IP to 100 requests per minute
+    max: 30, // Limit each IP to 30 requests per minute
     message: { error: "Too many requests. Please try again later." },
     standardHeaders: true,
     legacyHeaders: false,
@@ -161,7 +201,7 @@ async function startServer() {
   // AI Specific Rate Limiting
   const aiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 20, // Limit each IP to 20 requests per window
+    max: 10, // Limit each IP to 10 requests per window
     message: { error: "Too many AI requests. Please try again later." },
     standardHeaders: true,
     legacyHeaders: false,
@@ -171,7 +211,9 @@ async function startServer() {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://checkout.razorpay.com", "https://*.googleapis.com", "https://*.googletagmanager.com", "https://www.gstatic.com", "https://*.firebaseapp.com", "https://*.firebaseauth.com", "https://apis.google.com", "https://accounts.google.com"],
+        scriptSrc: process.env.NODE_ENV === 'production' 
+          ? ["'self'", "https://checkout.razorpay.com", "https://*.googleapis.com", "https://*.googletagmanager.com", "https://www.gstatic.com", "https://*.firebaseapp.com", "https://*.firebaseauth.com", "https://apis.google.com", "https://accounts.google.com"]
+          : ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://checkout.razorpay.com", "https://*.googleapis.com", "https://*.googletagmanager.com", "https://www.gstatic.com", "https://*.firebaseapp.com", "https://*.firebaseauth.com", "https://apis.google.com", "https://accounts.google.com"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         imgSrc: ["'self'", "data:", "https://picsum.photos", "https://lh3.googleusercontent.com", "https://*.google-analytics.com", "https://*.google.com"],
@@ -224,18 +266,18 @@ async function startServer() {
   });
 
   // Auth Middleware
-  const authenticateToken = (req: any, res: any, next: any) => {
+  const authenticateToken = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
     if (!token) return res.status(401).json({ error: "Access denied" });
 
-    jwt.verify(token, process.env.JWT_SECRET || 'dev_secret_only', (err: any, user: any) => {
+    jwt.verify(token, process.env.JWT_SECRET || 'dev_secret_only', (err: jwt.VerifyErrors | null, user: string | jwt.JwtPayload | undefined) => {
       if (err) return res.status(403).json({ error: "Invalid token" });
       if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev_secret_only')) {
         console.error("CRITICAL SECURITY ERROR: JWT_SECRET is not set in production!");
         return res.status(500).json({ error: "Server configuration error" });
       }
-      req.user = user;
+      req.user = user as AuthUser;
       next();
     });
   };
@@ -302,7 +344,7 @@ async function startServer() {
   };
 
   // Firebase Auth Middleware
-  const verifyFirebaseToken = async (req: any, res: any, next: any) => {
+  const verifyFirebaseToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
     
@@ -313,9 +355,9 @@ async function startServer() {
     try {
       const decodedToken = await admin.auth().verifyIdToken(token);
       
-      let user: any = {
+      let user: AuthUser = {
         id: decodedToken.uid,
-        email: decodedToken.email,
+        email: decodedToken.email || '',
         subscription_plan: 'trial',
         role: 'user',
         trial_used: 0
@@ -333,10 +375,11 @@ async function startServer() {
             });
             console.log(`New user registered: ${decodedToken.email} (${decodedToken.uid})`);
           } else {
-            user = { ...userDoc.data(), id: decodedToken.uid };
+            user = { ...(userDoc.data() as AuthUser), id: decodedToken.uid };
           }
-        } catch (dbError: any) {
-          console.error("⚠️ Firestore profile fetch failed, using default profile:", dbError.message);
+        } catch (dbError: unknown) {
+          const error = dbError as Error;
+          console.error("⚠️ Firestore profile fetch failed, using default profile:", error.message);
           // Check if this is the bootstrapped admin
           if (decodedToken.email === "realprouser1234@gmail.com" && decodedToken.email_verified) {
             user.role = 'admin';
@@ -353,306 +396,34 @@ async function startServer() {
       
       req.user = user;
       next();
-    } catch (error: any) {
-      console.error("❌ Auth Middleware Error:", error.message);
-      if (error.stack) console.error(error.stack);
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error("❌ Auth Middleware Error:", err.message);
+      if (err.stack) console.error(err.stack);
       
-      if (error.code === 'auth/id-token-expired') {
+      if ((err as any).code === 'auth/id-token-expired') {
         return res.status(401).json({ error: "Token expired", code: "TOKEN_EXPIRED" });
       }
       
-      res.status(401).json({ error: "Authentication failed", details: error.message });
+      res.status(401).json({ error: "Authentication failed", details: err.message });
     }
   };
 
   // AI Gateway Logic
-  const isValidModelName = (name: string) => {
-    if (!name || typeof name !== 'string') return false;
-    // Basic check: model names shouldn't contain spaces or curly braces or "import"
-    if (name.includes(' ') || name.includes('{') || name.includes('import')) return false;
-    return true;
-  };
-
-  const AI_MODELS = {
-    PRIMARY: "google/gemma-4-31b-it:free", // THINKING MODEL
-    FAST: "google/gemma-3-27b-it:free",    // FAST MODEL
-    FALLBACK_STATIC: "Next Action: Focus on your current priority.\n\nInsight: AI systems are temporarily limited, but your productivity doesn't have to be."
-  };
-
-  const LIFE_PILOT_SYSTEM_PROMPT = `
-You are the AI orchestration system for "Life Pilot".
-Your job: Choose the correct model, generate useful outputs, and ensure reliability.
-
-CORE OBJECTIVE:
-• Respond fast when possible
-• Use deep reasoning only when needed
-• Always return actionable output
-• Never fail the user
-
-OUTPUT FORMAT (STRICT):
-Unless the user explicitly requests a JSON format for data processing, always respond in this structure:
-
-Next Action:
-<clear, short task>
-
-(Optional) Schedule:
-<only if needed>
-
-(Optional) Insight:
-<1 short data-based sentence>
-
-RESPONSE STYLE:
-• Short, direct, action-focused
-• No unnecessary explanation
-• No long paragraphs, generic advice, or fluff
-
-IMPORTANT:
-• Do NOT mention models or routing
-• Do NOT generate placeholder responses
-`;
-
-  const handle_ai_request = async (user: any, prompt: string, taskType: 'simple' | 'complex' = 'simple', systemInstruction: string = "") => {
-    const userId = user.id;
-    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-
-    if (!OPENROUTER_API_KEY) {
-      throw new Error("AI service configuration error: OPENROUTER_API_KEY is missing.");
-    }
-
-    const fullSystemInstruction = `${LIFE_PILOT_SYSTEM_PROMPT}\n${systemInstruction}`;
-
-    // 1. Model Routing Logic
-    // THINKING MODEL for: full schedules, planning multiple tasks, analyzing user behavior, prioritizing tasks, optimizing routines
-    // FAST MODEL for: simple chat, short answers, motivation, reminders, next action suggestions, UI text
-    const isThinkingTask = taskType === 'complex' || 
-                           prompt.toLowerCase().includes('schedule') || 
-                           prompt.toLowerCase().includes('plan') || 
-                           prompt.toLowerCase().includes('analyze') ||
-                           prompt.toLowerCase().includes('prioritize') ||
-                           prompt.toLowerCase().includes('optimize') ||
-                           prompt.toLowerCase().includes('behavior');
-    
-    const selectedModel = isThinkingTask ? AI_MODELS.PRIMARY : AI_MODELS.FAST;
-
-    const callAI = async (model: string, retryCount = 0): Promise<any> => {
-      try {
-        const response = await axios.post(
-          'https://openrouter.ai/api/v1/chat/completions',
-          {
-            model: model,
-            messages: [
-              { role: 'system', content: fullSystemInstruction },
-              { role: 'user', content: prompt }
-            ],
-            max_tokens: 2000,
-            temperature: 0.7
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-              'Content-Type': 'application/json'
-            },
-            timeout: 30000 // 30s timeout
-          }
-        );
-
-        const text = response.data.choices?.[0]?.message?.content || "";
-        return { text, model };
-      } catch (err: any) {
-        console.error(`AI Model ${model} failed (Attempt ${retryCount + 1}):`, err.response?.data || err.message);
-        
-        // Retry once on the same model
-        if (retryCount < 1) {
-          return await callAI(model, retryCount + 1);
-        }
-        throw err;
-      }
-    };
-
-    const callAIWithFallback = async () => {
-      try {
-        console.log(`Routing to ${selectedModel === AI_MODELS.PRIMARY ? 'THINKING' : 'FAST'} model for task: ${taskType}`);
-        return await callAI(selectedModel);
-      } catch (err: any) {
-        // FALLBACK SYSTEM (MANDATORY)
-        if (selectedModel === AI_MODELS.PRIMARY) {
-          // If THINKING fails -> retry once (handled in callAI) -> switch to FAST
-          console.warn(`THINKING model failed, switching to FAST model: ${AI_MODELS.FAST}`);
-          try {
-            return await callAI(AI_MODELS.FAST);
-          } catch (fastErr: any) {
-            console.error("FAST model also failed after fallback.");
-            return { text: AI_MODELS.FALLBACK_STATIC, model: "static-fallback" };
-          }
-        } else {
-          // If FAST fails -> retry once (handled in callAI) -> return minimal actionable response
-          console.error("FAST model failed. Returning minimal response.");
-          return { text: AI_MODELS.FALLBACK_STATIC, model: "static-fallback" };
-        }
-      }
-    };
-
-    try {
-      // Caching logic
-      const promptHash = crypto.createHash('sha256').update(prompt + systemInstruction).digest('hex');
-      if (db) {
-        try {
-          const cachedDoc = await db.collection('ai_cache').doc(promptHash).get();
-          if (cachedDoc.exists) {
-            return { text: cachedDoc.data()?.response, cached: true };
-          }
-        } catch (e) {
-          console.warn("Cache check failed:", e.message);
-        }
-      }
-
-      const result = await callAIWithFallback();
-      const aiText = result.text;
-
-      if (db) {
-        try {
-          await db.collection('ai_cache').doc(promptHash).set({
-            response: aiText,
-            created_at: admin.firestore.FieldValue.serverTimestamp()
-          });
-        } catch (e) {
-          console.warn("Caching failed:", e.message);
-        }
-      }
-
-      return { text: aiText, cached: false, model: result.model };
-    } catch (error: any) {
-      console.error("AI Orchestration Error:", error.message);
-      return { text: AI_MODELS.FALLBACK_STATIC, model: "error-fallback" };
-    }
-  };
-
-  app.post("/api/ai/generate", verifyFirebaseToken, aiLimiter, async (req: any, res: any) => {
-    console.log("Received AI request:", req.body);
-    let { prompt, systemInstruction, taskType } = req.body;
-    const user = req.user;
-
-    if (!prompt) return res.status(400).json({ error: "Prompt is required" });
-
-    // Input length limits
-    prompt = String(prompt).substring(0, 5000);
-    systemInstruction = String(systemInstruction || "You are a helpful assistant.").substring(0, 2000);
-
-    try {
-      const result = await handle_ai_request(user, prompt, taskType, systemInstruction);
-      res.json(result);
-    } catch (error: any) {
-      console.error("Error in /api/ai/generate route:", error);
-      res.status(error.message.includes("limit") ? 403 : 500).json({ error: error.message });
-    }
-  });
+  app.use("/api/ai", aiRoutes);
 
   // Usage logging is handled internally by AI generation endpoint
   // Removed public usage logging endpoint to prevent database pollution exploits
 
 
-  app.get("/api/auth/me", verifyFirebaseToken, (req: any, res) => {
-    res.json(req.user);
-  });
+  app.use("/api/auth", authRoutes);
 
-  // Razorpay Integration
-  const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_dummy',
-    key_secret: process.env.RAZORPAY_KEY_SECRET || 'dummy_secret',
-  });
+  app.use("/api/payments", paymentRoutes);
 
-  app.post("/api/payments/create-order", verifyFirebaseToken, async (req: any, res) => {
-    const { amount, currency = "INR" } = req.body;
-    const userId = req.user.id;
-
-    try {
-      if (!db) throw new Error("Database not initialized");
-      const options = {
-        amount: amount * 100,
-        currency,
-        receipt: `receipt_order_${userId}_${Date.now()}`,
-      };
-      const order = await razorpay.orders.create(options);
-      
-      await db.collection('users').doc(userId).collection('payments').doc(order.id).set({
-        amount,
-        currency,
-        status: 'created',
-        created_at: admin.firestore.FieldValue.serverTimestamp()
-      });
-      
-      res.json(order);
-    } catch (error) {
-      res.status(500).json({ error: "Order creation failed" });
-    }
-  });
-
-  app.post("/api/payments/verify", verifyFirebaseToken, async (req: any, res: any) => {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-    const userId = req.user.id;
-
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return res.status(400).json({ error: "Missing payment verification details" });
-    }
-
-    const secret = process.env.RAZORPAY_KEY_SECRET;
-    if (!secret) {
-      return res.status(500).json({ error: "Server configuration error" });
-    }
-
-    const hmac = crypto.createHmac("sha256", secret);
-    hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
-    const generated_signature = hmac.digest("hex");
-
-    if (generated_signature === razorpay_signature) {
-      if (!db) return res.status(500).json({ error: "Database not initialized" });
-      const batch = db.batch();
-      const paymentRef = db.collection('users').doc(userId).collection('payments').doc(razorpay_order_id);
-      const userRef = db.collection('users').doc(userId);
-
-      batch.update(paymentRef, { 
-        razorpay_payment_id, 
-        status: 'captured',
-        updated_at: admin.firestore.FieldValue.serverTimestamp()
-      });
-      batch.update(userRef, { 
-        subscription_plan: 'premium',
-        updated_at: admin.firestore.FieldValue.serverTimestamp()
-      });
-      
-      await batch.commit();
-      res.json({ success: true, message: "Subscription upgraded successfully" });
-    } else {
-      res.status(400).json({ error: "Payment verification failed" });
-    }
-  });
-
-  app.post("/api/payments/cancel-subscription", verifyFirebaseToken, async (req: any, res) => {
-    const userId = req.user.id;
-    if (!db) return res.status(500).json({ error: "Database not initialized" });
-    await db.collection('users').doc(userId).update({ subscription_plan: 'trial' });
-    res.json({ success: true, message: "Subscription cancelled" });
-  });
-
-  // Admin Stats
-  app.get("/api/admin/stats", verifyFirebaseToken, async (req: any, res) => {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: "Forbidden" });
-    }
-
-    if (!db) return res.status(500).json({ error: "Database not initialized" });
-    const usersSnap = await db.collection('users').get();
-    const premiumUsersSnap = await db.collection('users').where('subscription_plan', '==', 'premium').get();
-    
-    res.json({
-      totalUsers: usersSnap.size,
-      premiumUsers: premiumUsersSnap.size,
-      totalRevenue: 0 // Would need a more complex query or aggregation
-    });
-  });
+  app.use("/api/admin", adminRoutes);
 
   // Global Error Handler
-  app.use((err: any, req: any, res: any, next: any) => {
+  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     console.error("Unhandled Error:", err);
     res.status(500).json({ 
       error: "Internal Server Error", 
@@ -682,7 +453,7 @@ IMPORTANT:
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
-  }).on('error', (err: any) => {
+  }).on('error', (err: NodeJS.ErrnoException) => {
     console.error("Server failed to start (listen error):", err);
     if (err.code === 'EADDRINUSE') {
       console.error(`Port ${PORT} is already in use.`);

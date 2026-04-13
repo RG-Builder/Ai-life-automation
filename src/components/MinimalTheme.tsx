@@ -185,7 +185,13 @@ const FocusScreen = () => {
   );
 };
 
-const TaskItem = ({ title, time, icon }: any) => (
+interface TaskItemProps {
+  title: string;
+  time: string;
+  icon: React.ReactNode;
+}
+
+const TaskItem = ({ title, time, icon }: TaskItemProps) => (
   <div className="flex items-center gap-4 p-4 bg-[#F9FAFB] rounded-2xl">
     <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-[#405C4A] shadow-sm shrink-0">
       {icon}
@@ -197,7 +203,13 @@ const TaskItem = ({ title, time, icon }: any) => (
   </div>
 );
 
-const RoutineItem = ({ checked, title, duration }: any) => (
+interface RoutineItemProps {
+  checked: boolean;
+  title: string;
+  duration: string;
+}
+
+const RoutineItem = ({ checked, title, duration }: RoutineItemProps) => (
   <div className="flex items-center justify-between">
     <div className="flex items-center gap-3">
       {checked ? (
@@ -321,7 +333,16 @@ const HabitsScreen = () => {
   );
 };
 
-const RitualItem = ({ icon, title, target, streak, progress, checked }: any) => (
+interface RitualItemProps {
+  icon: React.ReactNode;
+  title: string;
+  target: string;
+  streak: number;
+  progress: number;
+  checked: boolean;
+}
+
+const RitualItem = ({ icon, title, target, streak, progress, checked }: RitualItemProps) => (
   <div className="bg-white rounded-3xl p-6 shadow-sm flex items-center gap-6">
     <div className="w-14 h-14 bg-[#F9FAFB] rounded-2xl flex items-center justify-center text-[#405C4A] shrink-0">
       {icon}
@@ -396,7 +417,17 @@ const TasksScreen = () => {
   );
 };
 
-const TimelineItem = ({ time, title, meta, badge, description, avatars, active }: any) => (
+interface TimelineItemProps {
+  time: string;
+  title: string;
+  meta?: string;
+  badge?: string;
+  description?: string;
+  avatars?: boolean;
+  active: boolean;
+}
+
+const TimelineItem = ({ time, title, meta, badge, description, avatars, active }: TimelineItemProps) => (
   <div className="relative flex gap-6">
     <div className="w-12 text-right pt-1 shrink-0">
       <div className="text-xs font-bold text-gray-500">{time.split(' ')[0]}</div>
