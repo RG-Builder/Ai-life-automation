@@ -161,8 +161,8 @@ export const HabitsView: React.FC = () => {
                       <label className="text-[10px] font-black text-text_secondary uppercase tracking-widest ml-1">Daily Goal</label>
                       <input 
                         type="number" 
-                        value={habitGoalCount}
-                        onChange={(e) => setHabitGoalCount(parseInt(e.target.value) || 1)}
+                        value={Number.isNaN(habitGoalCount) ? '' : habitGoalCount}
+                        onChange={(e) => setHabitGoalCount(parseInt(e.target.value))}
                         className="w-full bg-slate-900/50 border border-border rounded-2xl px-6 py-4 focus:border-primary/50 outline-none font-bold text-text_primary"
                       />
                     </div>

@@ -127,7 +127,7 @@ export const MissionMatrix: React.FC = () => {
                 </div>
                 <input 
                   type="range" min="1" max="10" step="1"
-                  value={urgencyScore}
+                  value={Number.isNaN(urgencyScore) ? 5 : urgencyScore}
                   onChange={(e) => setUrgencyScore(parseInt(e.target.value))}
                   className="w-full h-1.5 bg-border rounded-full appearance-none cursor-pointer accent-primary"
                 />
@@ -139,7 +139,7 @@ export const MissionMatrix: React.FC = () => {
                 </div>
                 <input 
                   type="range" min="1" max="5" step="1"
-                  value={estimatedEffort}
+                  value={Number.isNaN(estimatedEffort) ? 3 : estimatedEffort}
                   onChange={(e) => setEstimatedEffort(parseInt(e.target.value))}
                   className="w-full h-1.5 bg-border rounded-full appearance-none cursor-pointer accent-secondary"
                 />
@@ -153,7 +153,7 @@ export const MissionMatrix: React.FC = () => {
                 </div>
                 <input 
                   type="range" min="1" max="10" step="1"
-                  value={impactLevel}
+                  value={Number.isNaN(impactLevel) ? 5 : impactLevel}
                   onChange={(e) => setImpactLevel(parseInt(e.target.value))}
                   className="w-full h-1.5 bg-border rounded-full appearance-none cursor-pointer accent-accent"
                 />
@@ -162,8 +162,8 @@ export const MissionMatrix: React.FC = () => {
                 <label className="text-[10px] font-black text-text_secondary uppercase tracking-widest ml-1">Duration (min)</label>
                 <input 
                   type="number" 
-                  value={duration}
-                  onChange={(e) => setDuration(parseInt(e.target.value) || 0)}
+                  value={Number.isNaN(duration) ? '' : duration}
+                  onChange={(e) => setDuration(parseInt(e.target.value))}
                   className="w-full bg-surface border border-border rounded-xl md:rounded-2xl px-4 md:px-8 py-3 md:py-5 focus:border-primary/50 outline-none font-bold text-text_primary"
                 />
               </div>

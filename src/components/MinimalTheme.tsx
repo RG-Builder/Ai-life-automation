@@ -12,30 +12,62 @@ import {
   Flame,
   Droplet,
   BookOpen,
+  Edit2,
   Edit3,
   Plus,
   Send,
   MoreVertical,
   Sparkles,
   CheckCircle2,
-  Circle
+  Circle,
+  Trash2,
+  Loader2,
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { TaskModal } from './TaskModal';
+import { HabitModal } from './HabitModal';
+import { Mission, Habit } from '../types';
 
 // --- MINIMAL THEME COMPONENTS ---
 
 export const MinimalTheme: React.FC = () => {
   const [activeTab, setActiveTab] = useState('focus');
+  const { error, setError } = useAppContext();
 
   return (
     <div className="min-h-screen bg-[#F9FAFB] text-gray-900 font-sans selection:bg-gray-200 flex flex-col">
+      {/* Error Toast */}
+      <AnimatePresence>
+        {error && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-sm"
+          >
+            <div className="bg-white border border-danger/20 rounded-2xl p-4 shadow-xl flex items-center gap-3">
+              <AlertCircle className="text-danger shrink-0" size={20} />
+              <p className="text-sm text-gray-700 flex-1">{error}</p>
+              <button onClick={() => setError(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={16} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <header className="px-6 pt-12 pb-6 flex justify-between items-center sticky top-0 bg-[#F9FAFB]/80 backdrop-blur-md z-50">
         <div className="flex items-center gap-3">
-          <img src="https://i.pravatar.cc/150?img=11" alt="Profile" className="w-8 h-8 rounded-full object-cover" />
+          <img src={useAuth().firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
           <h1 className="font-bold text-lg leading-tight tracking-tight">
-            {activeTab === 'focus' ? 'Focus' : 'LifePilot AI'}
+            {activeTab === 'focus' ? 'Focus' : 
+             activeTab === 'habits' ? 'Rituals' :
+             activeTab === 'tasks' ? 'Architecture' : 'Insights'}
           </h1>
         </div>
         <button className="w-8 h-8 flex items-center justify-center text-gray-700 hover:text-gray-900 transition-colors">
@@ -82,12 +114,24 @@ const NavItem = ({ id, icon, label, active, onClick }: { id: string, icon: React
 // --- SCREENS ---
 
 const FocusScreen = () => {
-  const { tasks, completedTasks, currentFocusTask, setFocusTask, schedule } = useAppContext();
+  const { tasks, completedTasks, currentFocusTask, setFocusTask, schedule, completeTask } = useAppContext();
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState<Mission | null>(null);
   
   const pendingTasks = tasks.filter(t => t.status === 'pending');
   const nextTasks = schedule.filter(s => !s.completed).slice(0, 3);
+
+  const handleAddTask = () => {
+    setTaskToEdit(null);
+    setIsTaskModalOpen(true);
+  };
   
-  const focusTimeHours = 4.2;
+  // Calculate real focus time from completed tasks today
+  const today = new Date().toISOString().split('T')[0];
+  const focusTimeMinutes = completedTasks
+    .filter(t => t.completed_at?.startsWith(today))
+    .reduce((acc, t) => acc + (t.duration || 0), 0);
+  const focusTimeHours = (focusTimeMinutes / 60).toFixed(1);
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-10 pt-4">
@@ -113,24 +157,48 @@ const FocusScreen = () => {
       <div>
         <h2 className="text-[10px] font-bold tracking-wider text-gray-500 uppercase mb-4">Current Mission</h2>
         <div className="bg-white rounded-[32px] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-          <div className="bg-[#E5F3E8] text-[#2E4536] text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider inline-block mb-6">
-            Priority Alpha
-          </div>
-          <h3 className="text-4xl font-bold text-gray-900 leading-tight mb-6 tracking-tight">
-            {currentFocusTask ? currentFocusTask.title : 'Deep work: Refine Q4 Strategic Architecture'}
-          </h3>
-          <p className="text-gray-500 text-lg leading-relaxed mb-8">
-            The Pilot suggests focusing on the core narrative before diving into technical specifications. You have 90 minutes of peak cognitive window remaining.
-          </p>
-          
-          <div className="flex gap-4">
-            <button className="bg-[#405C4A] text-white px-6 py-3.5 rounded-xl text-sm font-semibold hover:bg-[#2E4536] transition-colors">
-              Begin Deep Session
-            </button>
-            <button className="bg-white border border-gray-200 text-gray-700 px-6 py-3.5 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors">
-              Delegate
-            </button>
-          </div>
+          {currentFocusTask ? (
+            <>
+              <div className={cn(
+                "text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider inline-block mb-6",
+                currentFocusTask.priority === 'high' ? "bg-danger/10 text-danger" : "bg-[#E5F3E8] text-[#2E4536]"
+              )}>
+                Priority {currentFocusTask.priority === 'high' ? 'Alpha' : currentFocusTask.priority === 'medium' ? 'Beta' : 'Gamma'}
+              </div>
+              <h3 className="text-4xl font-bold text-gray-900 leading-tight mb-6 tracking-tight">
+                {currentFocusTask.title}
+              </h3>
+              <p className="text-gray-500 text-lg leading-relaxed mb-8">
+                {currentFocusTask.category} • {currentFocusTask.duration} minutes estimated.
+                The Pilot suggests maintaining focus on this core objective.
+              </p>
+              
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => completeTask(currentFocusTask.id)}
+                  className="bg-[#405C4A] text-white px-6 py-3.5 rounded-xl text-sm font-semibold hover:bg-[#2E4536] transition-colors"
+                >
+                  Complete Mission
+                </button>
+                <button 
+                  onClick={() => setFocusTask(null)}
+                  className="bg-white border border-gray-200 text-gray-700 px-6 py-3.5 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors"
+                >
+                  Pause
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-400 italic mb-6">No active mission selected</p>
+              <button 
+                onClick={() => setIsTaskModalOpen(true)}
+                className="bg-[#405C4A] text-white px-8 py-4 rounded-2xl font-bold hover:scale-105 transition-all"
+              >
+                Initialize New Mission
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -147,7 +215,7 @@ const FocusScreen = () => {
               key={task.id} 
               title={task.title} 
               time={`${task.startTime} — ${task.endTime}`} 
-              icon={i === 0 ? <Mail size={18} /> : i === 1 ? <Dumbbell size={18} /> : <BrainCircuit size={18} />} 
+              icon={task.type === 'deep-work' ? <BrainCircuit size={18} /> : task.type === 'meeting' ? <Mail size={18} /> : <Dumbbell size={18} />} 
             />
           ))}
           {nextTasks.length === 0 && (
@@ -158,29 +226,21 @@ const FocusScreen = () => {
         </div>
       </div>
 
-      {/* Morning Routine */}
-      <div className="bg-gradient-to-br from-gray-100 to-gray-50 rounded-[32px] p-8 relative overflow-hidden">
-        <div className="absolute -right-10 -top-10 opacity-5">
-          <Sparkles size={200} />
-        </div>
-        <h2 className="text-[10px] font-bold tracking-wider text-gray-500 uppercase mb-2 relative z-10">Morning Routine</h2>
-        <h3 className="text-2xl font-bold text-gray-900 mb-4 relative z-10">Clarity achieved.</h3>
-        <p className="text-gray-600 text-sm leading-relaxed relative z-10">
-          Your biometric data shows 15% better focus today after your extended mindfulness session.
-        </p>
-      </div>
-
       {/* Pilot Insights */}
       <div className="bg-[#E5F3E8] rounded-[32px] p-8">
         <h3 className="text-2xl font-bold text-gray-900 mb-4">Pilot Insights</h3>
         <p className="text-[#405C4A] text-base leading-relaxed mb-6">
-          You are currently in a "Deep Work" streak of {useAppContext().streak} days. Based on your current output, we can safely reschedule Friday's sprint to give you an afternoon of creative decompression.
+          You are currently on a {useAppContext().streak} day streak. 
+          {completedTasks.length > 0 ? 
+            " Your momentum is high. Keep pushing towards your weekly objectives." : 
+            " Start your first mission to build momentum for the day."}
         </p>
         <button className="text-[#2E4536] font-bold text-sm flex items-center gap-2 hover:opacity-80 transition-opacity">
           Explore Schedule Optimization <span className="text-lg">→</span>
         </button>
       </div>
 
+      <TaskModal isOpen={isTaskModalOpen} onClose={() => setIsTaskModalOpen(false)} />
     </motion.div>
   );
 };
@@ -189,6 +249,7 @@ interface TaskItemProps {
   title: string;
   time: string;
   icon: React.ReactNode;
+  key?: any;
 }
 
 const TaskItem = ({ title, time, icon }: TaskItemProps) => (
@@ -203,29 +264,25 @@ const TaskItem = ({ title, time, icon }: TaskItemProps) => (
   </div>
 );
 
-interface RoutineItemProps {
-  checked: boolean;
-  title: string;
-  duration: string;
-}
-
-const RoutineItem = ({ checked, title, duration }: RoutineItemProps) => (
-  <div className="flex items-center justify-between">
-    <div className="flex items-center gap-3">
-      {checked ? (
-        <CheckCircle2 size={20} className="text-gray-900" />
-      ) : (
-        <Circle size={20} className="text-gray-300" />
-      )}
-      <span className={cn("text-sm font-medium", checked ? "text-gray-900 line-through decoration-gray-300" : "text-gray-600")}>{title}</span>
-    </div>
-    <span className="text-xs text-gray-400">{duration}</span>
-  </div>
-);
-
 const HabitsScreen = () => {
-  const { streak } = useAppContext();
+  const { streak, habits, toggleHabit, deleteHabit } = useAppContext();
+  const [isHabitModalOpen, setIsHabitModalOpen] = useState(false);
+  const [habitToEdit, setHabitToEdit] = useState<Habit | null>(null);
   
+  const completionRate = habits.length > 0 
+    ? Math.round((habits.filter(h => h.last_completed_at?.startsWith(new Date().toISOString().split('T')[0])).length / habits.length) * 100)
+    : 0;
+
+  const handleEditHabit = (habit: Habit) => {
+    setHabitToEdit(habit);
+    setIsHabitModalOpen(true);
+  };
+
+  const handleAddHabit = () => {
+    setHabitToEdit(null);
+    setIsHabitModalOpen(true);
+  };
+
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8 pt-4">
       
@@ -239,18 +296,22 @@ const HabitsScreen = () => {
       {/* Weekly Momentum */}
       <div className="bg-white rounded-[32px] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
         <div className="bg-[#E5F3E8] text-[#2E4536] text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider inline-block mb-4">
-          Weekly Momentum
+          Today's Momentum
         </div>
-        <h3 className="text-3xl font-bold text-gray-900 mb-8">92% Completion</h3>
+        <h3 className="text-3xl font-bold text-gray-900 mb-8">{completionRate}% Completion</h3>
         
         <div className="flex justify-between items-end h-32 gap-2">
-          <div className="flex-1 bg-[#E5F3E8] rounded-t-xl h-[40%]"></div>
-          <div className="flex-1 bg-[#E5F3E8] rounded-t-xl h-[60%]"></div>
-          <div className="flex-1 bg-[#E5F3E8] rounded-t-xl h-[50%]"></div>
-          <div className="flex-1 bg-[#E5F3E8] rounded-t-xl h-[70%]"></div>
-          <div className="flex-1 bg-[#405C4A] rounded-t-xl h-[90%]"></div>
-          <div className="flex-1 bg-gray-100 rounded-t-xl h-[10%]"></div>
-          <div className="flex-1 bg-gray-100 rounded-t-xl h-[10%]"></div>
+          {/* Mock chart for now, but could be real historical data */}
+          {[40, 60, 50, 70, 90, 10, 10].map((h, i) => (
+            <div 
+              key={i} 
+              className={cn(
+                "flex-1 rounded-t-xl transition-all duration-500",
+                i === 4 ? "bg-[#405C4A]" : "bg-[#E5F3E8]",
+              )} 
+              style={{ height: `${h}%` }}
+            ></div>
+          ))}
         </div>
       </div>
 
@@ -271,64 +332,46 @@ const HabitsScreen = () => {
       <div>
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-[10px] font-bold tracking-wider text-gray-500 uppercase">Active Rituals</h3>
-          <button className="text-xs font-semibold text-gray-600 flex items-center gap-1">
+          <button 
+            onClick={handleAddHabit}
+            className="text-xs font-semibold text-gray-600 flex items-center gap-1"
+          >
             <Plus size={14} /> New Habit
           </button>
         </div>
         
         <div className="space-y-4">
-          <RitualItem 
-            icon={<Droplet size={20} />} 
-            title="Hydration Ritual" 
-            target="Target: 3.0L daily" 
-            streak={24} 
-            progress={60} 
-            checked={false} 
-          />
-          <RitualItem 
-            icon={<BrainCircuit size={20} />} 
-            title="Morning Stillness" 
-            target="10 min meditation" 
-            streak={8} 
-            progress={100} 
-            checked={true} 
-          />
-          <RitualItem 
-            icon={<BookOpen size={20} />} 
-            title="Deep Reading" 
-            target="20 pages daily" 
-            streak={0} 
-            progress={0} 
-            checked={false} 
-          />
+          {habits.map(habit => (
+            <RitualItem 
+              key={habit.id}
+              icon={habit.category === 'Health' ? <Droplet size={20} /> : habit.category === 'Mindset' ? <BrainCircuit size={20} /> : <BookOpen size={20} />} 
+              title={habit.title} 
+              target={habit.description} 
+              streak={habit.streak} 
+              progress={habit.goal_count > 0 ? (habit.current_count / habit.goal_count) * 100 : 0} 
+              checked={habit.last_completed_at?.startsWith(new Date().toISOString().split('T')[0]) || false} 
+              onToggle={() => toggleHabit(habit.id)}
+              onDelete={() => {
+                if (confirm('Delete this ritual?')) deleteHabit(habit.id);
+              }}
+              onEdit={() => handleEditHabit(habit)}
+            />
+          ))}
+          {habits.length === 0 && (
+            <div className="text-center py-12 bg-white rounded-[32px] border border-dashed border-gray-200">
+              <p className="text-gray-400 italic mb-4">No rituals established yet</p>
+              <button 
+                onClick={handleAddHabit}
+                className="text-[#405C4A] font-bold text-sm"
+              >
+                + Add Your First Ritual
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Daily Reflection */}
-      <div className="bg-[#F9FAFB] rounded-[32px] p-8 relative">
-        <h3 className="text-2xl font-bold text-gray-900 mb-4">Daily Reflection</h3>
-        <p className="text-gray-500 text-sm italic mb-6">
-          "How did today's actions align with your vision of who you want to become?"
-        </p>
-        <textarea 
-          className="w-full bg-white border border-gray-100 rounded-2xl p-6 text-base resize-none focus:outline-none focus:ring-2 focus:ring-[#405C4A]/20 transition-all shadow-sm"
-          rows={4}
-          placeholder="Capture your thoughts..."
-        ></textarea>
-        <div className="flex gap-4 mt-6">
-          <button className="bg-[#405C4A] text-white px-6 py-3.5 rounded-xl text-sm font-semibold hover:bg-[#2E4536] transition-colors">
-            Complete Day
-          </button>
-          <button className="bg-white border border-gray-200 text-gray-700 px-6 py-3.5 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors">
-            Save Draft
-          </button>
-        </div>
-        
-        <button className="absolute -bottom-6 -right-2 w-14 h-14 bg-[#405C4A] text-white rounded-2xl shadow-lg flex items-center justify-center hover:scale-105 transition-transform">
-          <Edit3 size={24} />
-        </button>
-      </div>
-
+      <HabitModal isOpen={isHabitModalOpen} onClose={() => setIsHabitModalOpen(false)} habitToEdit={habitToEdit} />
     </motion.div>
   );
 };
@@ -340,10 +383,28 @@ interface RitualItemProps {
   streak: number;
   progress: number;
   checked: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+  onEdit: () => void;
+  key?: any;
 }
 
-const RitualItem = ({ icon, title, target, streak, progress, checked }: RitualItemProps) => (
-  <div className="bg-white rounded-3xl p-6 shadow-sm flex items-center gap-6">
+const RitualItem = ({ icon, title, target, streak, progress, checked, onToggle, onDelete, onEdit }: RitualItemProps) => (
+  <div className="bg-white rounded-3xl p-6 shadow-sm flex items-center gap-6 relative group">
+    <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+      <button 
+        onClick={onEdit}
+        className="p-2 text-gray-300 hover:text-blue-500"
+      >
+        <Edit2 size={16} />
+      </button>
+      <button 
+        onClick={onDelete}
+        className="p-2 text-gray-300 hover:text-danger"
+      >
+        <Trash2 size={16} />
+      </button>
+    </div>
     <div className="w-14 h-14 bg-[#F9FAFB] rounded-2xl flex items-center justify-center text-[#405C4A] shrink-0">
       {icon}
     </div>
@@ -355,229 +416,214 @@ const RitualItem = ({ icon, title, target, streak, progress, checked }: RitualIt
           Streak<br/><span className="text-gray-900 text-sm">{streak} ⚡</span>
         </div>
         <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div className="h-full bg-[#405C4A] rounded-full" style={{ width: `${progress}%` }}></div>
+          <div className="h-full bg-[#405C4A] rounded-full" style={{ width: `${Math.min(100, progress)}%` }}></div>
         </div>
       </div>
     </div>
-    <button className={cn(
-      "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border-2 transition-colors",
-      checked ? "bg-[#E5F3E8] border-[#E5F3E8] text-[#405C4A]" : "bg-white border-gray-100 text-gray-300"
-    )}>
+    <button 
+      onClick={onToggle}
+      className={cn(
+        "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border-2 transition-colors",
+        checked ? "bg-[#E5F3E8] border-[#E5F3E8] text-[#405C4A]" : "bg-white border-gray-100 text-gray-300"
+      )}
+    >
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
     </button>
   </div>
 );
 
 const TasksScreen = () => {
-  const { schedule, generateSchedule } = useAppContext();
+  const { schedule, generateSchedule, isLoading, tasks, setFocusTask, deleteTask, completeTask } = useAppContext();
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState<Mission | null>(null);
+  const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
   
   const today = new Date();
   const dateString = today.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
+  const filteredTasks = tasks.filter(t => {
+    if (filter === 'pending') return t.status === 'pending' || t.status === 'overdue';
+    if (filter === 'completed') return t.status === 'completed';
+    return true;
+  });
+
+  const handleEditTask = (task: Mission) => {
+    setTaskToEdit(task);
+    setIsTaskModalOpen(true);
+  };
+
+  const handleAddTask = () => {
+    setTaskToEdit(null);
+    setIsTaskModalOpen(true);
+  };
+
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8 pt-4 relative min-h-[calc(100vh-180px)]">
       
-      <div>
-        <div className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-2">{dateString}</div>
-        <h2 className="text-4xl font-bold tracking-tight text-gray-900 mb-4">Your Optimal Architecture</h2>
-        <div className="bg-[#E5F3E8] text-[#2E4536] text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider inline-block">
-          AI Optimized Schedule
+      <div className="flex justify-between items-start">
+        <div>
+          <div className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-2">{dateString}</div>
+          <h2 className="text-4xl font-bold tracking-tight text-gray-900 mb-4">Architecture</h2>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setFilter('all')}
+              className={cn("text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider", filter === 'all' ? "bg-[#405C4A] text-white" : "bg-gray-100 text-gray-500")}
+            >All</button>
+            <button 
+              onClick={() => setFilter('pending')}
+              className={cn("text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider", filter === 'pending' ? "bg-[#405C4A] text-white" : "bg-gray-100 text-gray-500")}
+            >Pending</button>
+            <button 
+              onClick={() => setFilter('completed')}
+              className={cn("text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider", filter === 'completed' ? "bg-[#405C4A] text-white" : "bg-gray-100 text-gray-500")}
+            >Completed</button>
+          </div>
         </div>
+        <button 
+          onClick={generateSchedule}
+          disabled={isLoading}
+          className="bg-[#E5F3E8] text-[#2E4536] p-3 rounded-2xl hover:bg-[#d5e8da] transition-colors disabled:opacity-50"
+        >
+          {isLoading ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />}
+        </button>
       </div>
 
-      <div className="relative before:absolute before:left-[4.5rem] before:top-2 before:bottom-2 before:w-px before:bg-gray-200 space-y-8">
-        
-        {schedule.map((item, index) => (
-          <TimelineItem 
-            key={item.id}
-            time={item.startTime} 
-            title={item.title} 
-            meta={`${item.type} • ${item.duration}`}
-            badge={item.type === 'deep-work' ? 'Deep Work' : undefined}
-            description={item.type === 'deep-work' ? "High-cognitive demand block. Mobile notifications silenced." : undefined}
-            avatars={item.type === 'meeting'}
-            active={index === 1} // Just highlighting the second one for demo
-          />
+      <div className="space-y-4">
+        {filteredTasks.map((task) => (
+          <div key={task.id} className="bg-white rounded-3xl p-6 shadow-sm flex items-center gap-4 group">
+            <button 
+              onClick={() => completeTask(task.id)}
+              className={cn(
+                "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors",
+                task.status === 'completed' ? "bg-[#405C4A] border-[#405C4A] text-white" : "border-gray-200 text-transparent"
+              )}
+            >
+              <CheckCircle2 size={14} />
+            </button>
+            <div className="flex-1 cursor-pointer" onClick={() => setFocusTask(task)}>
+              <h4 className={cn("font-bold text-gray-900", task.status === 'completed' && "line-through text-gray-400")}>{task.title}</h4>
+              <div className="text-xs text-gray-500">{task.category} • {task.duration}m</div>
+            </div>
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+              <button 
+                onClick={() => handleEditTask(task)}
+                className="p-2 text-gray-300 hover:text-blue-500"
+              >
+                <Edit2 size={18} />
+              </button>
+              <button 
+                onClick={() => { if(confirm('Delete mission?')) deleteTask(task.id); }}
+                className="p-2 text-gray-300 hover:text-danger"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+          </div>
         ))}
 
-        {schedule.length === 0 && (
-          <div className="pl-24 text-gray-500 italic">No schedule generated yet.</div>
+        {filteredTasks.length === 0 && (
+          <div className="text-center py-12 bg-white rounded-[32px] border border-dashed border-gray-200">
+            <p className="text-gray-400 italic mb-4">No missions found in this sector</p>
+            <button 
+              onClick={handleAddTask}
+              className="text-[#405C4A] font-bold text-sm"
+            >
+              + Initialize First Mission
+            </button>
+          </div>
         )}
-
       </div>
 
       <button 
-        onClick={generateSchedule}
+        onClick={handleAddTask}
         className="fixed bottom-24 right-6 w-14 h-14 bg-[#405C4A] text-white rounded-2xl shadow-lg flex items-center justify-center hover:scale-105 transition-transform z-50"
       >
         <Plus size={24} />
       </button>
 
+      <TaskModal isOpen={isTaskModalOpen} onClose={() => setIsTaskModalOpen(false)} taskToEdit={taskToEdit} />
     </motion.div>
   );
 };
 
-interface TimelineItemProps {
-  time: string;
-  title: string;
-  meta?: string;
-  badge?: string;
-  description?: string;
-  avatars?: boolean;
-  active: boolean;
-}
+const InsightsScreen = () => {
+  const { user, firebaseUser } = useAuth();
+  const { tasks, habits, completedTasks } = useAppContext();
+  
+  const userName = firebaseUser?.displayName?.split(' ')[0] || "Pilot";
 
-const TimelineItem = ({ time, title, meta, badge, description, avatars, active }: TimelineItemProps) => (
-  <div className="relative flex gap-6">
-    <div className="w-12 text-right pt-1 shrink-0">
-      <div className="text-xs font-bold text-gray-500">{time.split(' ')[0]}</div>
-      <div className="text-[9px] font-bold text-gray-400">{time.split(' ')[1]}</div>
-    </div>
-    
-    <div className="relative pt-1 flex-1">
-      <div className={cn(
-        "absolute -left-[1.6rem] top-2 w-3 h-3 rounded-full border-2 border-[#F9FAFB]", 
-        active ? "bg-[#405C4A] ring-4 ring-[#E5F3E8]" : "bg-gray-300"
-      )}></div>
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="pt-4 flex flex-col min-h-[calc(100vh-180px)]">
       
-      <div className={cn("rounded-[24px] p-6", active ? "bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)]" : "")}>
-        {badge && (
-          <div className="bg-[#E5F3E8] text-[#2E4536] text-[9px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider inline-block mb-3">
-            {badge}
+      <div className="mb-8">
+        <h2 className="text-4xl font-bold tracking-tight text-gray-900 mb-4">Good evening, {userName}</h2>
+        <p className="text-gray-500 text-lg leading-relaxed">
+          Your AI Architect is ready to structure your intent.
+        </p>
+      </div>
+
+      <div className="flex-1 space-y-8 pb-32">
+        {/* AI Message 1 */}
+        <div className="flex gap-4">
+          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shrink-0 shadow-sm text-[#405C4A]">
+            <Sparkles size={20} />
           </div>
-        )}
-        <h4 className={cn("font-bold text-lg mb-1", active ? "text-gray-900" : "text-gray-700")}>{title}</h4>
-        
-        {meta && <div className="text-sm text-gray-500">{meta}</div>}
-        
-        {description && (
-          <p className="text-sm text-gray-500 leading-relaxed mt-2">{description}</p>
-        )}
-        
-        {avatars && (
-          <div className="flex items-center mt-4">
-            <div className="flex -space-x-2">
-              <img src="https://i.pravatar.cc/150?img=32" className="w-8 h-8 rounded-full border-2 border-white" alt="Avatar" />
-              <img src="https://i.pravatar.cc/150?img=12" className="w-8 h-8 rounded-full border-2 border-white" alt="Avatar" />
-              <div className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-600">
-                +2
-              </div>
+          <div className="flex-1">
+            <div className="flex items-baseline gap-2 mb-1">
+              <span className="text-[10px] font-bold tracking-wider text-gray-500 uppercase">AI Architect</span>
+              <span className="text-xs text-gray-400">Now</span>
+            </div>
+            <div className="bg-white p-5 rounded-2xl rounded-tl-none text-[15px] text-gray-700 leading-relaxed shadow-sm">
+              I've analyzed your progress. You've completed {completedTasks.length} missions today. 
+              {habits.length > 0 ? ` Your ritual consistency is at ${Math.round((habits.filter(h => h.streak > 0).length / habits.length) * 100)}%.` : ""}
+              How shall we structure your next focus block?
             </div>
           </div>
-        )}
-      </div>
-    </div>
-  </div>
-);
-
-const InsightsScreen = () => (
-  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="pt-4 flex flex-col min-h-[calc(100vh-180px)]">
-    
-    <div className="mb-8">
-      <h2 className="text-4xl font-bold tracking-tight text-gray-900 mb-4">Good evening, Marcus</h2>
-      <p className="text-gray-500 text-lg leading-relaxed">
-        Your AI Architect is ready to structure your intent.
-      </p>
-    </div>
-
-    <div className="flex-1 space-y-8 pb-32">
-      {/* AI Message 1 */}
-      <div className="flex gap-4">
-        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shrink-0 shadow-sm text-[#405C4A]">
-          <Sparkles size={20} />
         </div>
-        <div className="flex-1">
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-[10px] font-bold tracking-wider text-gray-500 uppercase">AI Architect</span>
-            <span className="text-xs text-gray-400">18:42</span>
-          </div>
-          <div className="bg-white p-5 rounded-2xl rounded-tl-none text-[15px] text-gray-700 leading-relaxed shadow-sm">
-            Welcome back to your Sanctuary. I've analyzed your cognitive load from today's sessions. You seem to have high momentum in the "Strategy" quadrant but your "Rest" metric is dipping. How shall we balance your evening?
+
+        {/* User Message */}
+        <div className="flex gap-4 flex-row-reverse">
+          <img src={firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="Profile" className="w-10 h-10 rounded-full object-cover shrink-0 shadow-sm" />
+          <div className="flex-1 flex flex-col items-end">
+            <div className="flex items-baseline gap-2 mb-1">
+              <span className="text-xs text-gray-400">Just now</span>
+              <span className="text-[10px] font-bold tracking-wider text-gray-500 uppercase">You</span>
+            </div>
+            <div className="bg-[#405C4A] text-white p-5 rounded-2xl rounded-tr-none text-[15px] leading-relaxed shadow-sm max-w-[90%]">
+              I want to optimize my evening for deep recovery. What do you suggest?
+            </div>
           </div>
         </div>
       </div>
 
-      {/* User Message */}
-      <div className="flex gap-4 flex-row-reverse">
-        <img src="https://i.pravatar.cc/150?img=11" alt="Profile" className="w-10 h-10 rounded-full object-cover shrink-0 shadow-sm" />
-        <div className="flex-1 flex flex-col items-end">
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-xs text-gray-400">18:43</span>
-            <span className="text-[10px] font-bold tracking-wider text-gray-500 uppercase">You</span>
-          </div>
-          <div className="bg-[#405C4A] text-white p-5 rounded-2xl rounded-tr-none text-[15px] leading-relaxed shadow-sm max-w-[90%]">
-            I want to wrap up the quarterly review by 8 PM so I can actually disconnect. Can you help me prioritize the remaining three sections?
-          </div>
-        </div>
-      </div>
-
-      {/* AI Message 2 with Insight Card */}
-      <div className="flex gap-4">
-        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shrink-0 shadow-sm text-[#405C4A]">
-          <Sparkles size={20} />
-        </div>
-        <div className="flex-1">
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-[10px] font-bold tracking-wider text-gray-500 uppercase">AI Architect</span>
-            <span className="text-xs text-gray-400">18:45</span>
+      {/* Input Area */}
+      <div className="fixed bottom-[72px] left-0 right-0 bg-gradient-to-t from-[#F9FAFB] via-[#F9FAFB] to-transparent pt-10 pb-4 px-6 z-40">
+        <div className="max-w-sm mx-auto">
+          <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide -mx-6 px-6">
+            <button className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm hover:bg-gray-50 transition-colors">
+              Optimise my evening
+            </button>
+            <button className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm hover:bg-gray-50 transition-colors">
+              Review today's goals
+            </button>
           </div>
           
-          <div className="bg-[#F9FAFB] border border-gray-100 p-6 rounded-3xl mb-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="bg-[#E5F3E8] text-[#2E4536] text-[9px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider">
-                AI Insight
-              </div>
-              <span className="font-bold text-gray-900">Optimization Path</span>
-            </div>
-            <p className="text-[15px] text-gray-700 leading-relaxed mb-6">
-              Based on your peak performance hours, I suggest focusing on the Financial Projections first while your analytical focus is high. We can automate the Team Acknowledgments section.
-            </p>
-            <div className="mb-2 flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wider">
-              <span>Progress Target</span>
-              <span className="text-[#405C4A]">67% Complete</span>
-            </div>
-            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div className="h-full bg-[#405C4A] rounded-full" style={{ width: '67%' }}></div>
-            </div>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl rounded-tl-none text-[15px] text-gray-700 leading-relaxed shadow-sm">
-            I've drafted a streamlined outline for the Financials. Shall we review it together, or would you like me to sync your focus mode with your workspace environment?
+          <div className="relative flex items-center">
+            <button className="absolute left-4 w-8 h-8 bg-[#E5F3E8] text-[#405C4A] rounded-full flex items-center justify-center hover:scale-105 transition-transform z-10">
+              <Plus size={18} />
+            </button>
+            <input 
+              type="text" 
+              placeholder="Design your intent..." 
+              className="w-full bg-white border border-gray-200 rounded-full py-4 pl-16 pr-14 text-base focus:outline-none focus:ring-2 focus:ring-[#405C4A]/20 transition-all shadow-sm"
+            />
+            <button className="absolute right-4 w-8 h-8 bg-[#405C4A] text-white rounded-full flex items-center justify-center hover:scale-105 transition-transform z-10">
+              <Send size={14} className="ml-0.5" />
+            </button>
           </div>
         </div>
       </div>
-    </div>
 
-    {/* Input Area */}
-    <div className="fixed bottom-[72px] left-0 right-0 bg-gradient-to-t from-[#F9FAFB] via-[#F9FAFB] to-transparent pt-10 pb-4 px-6 z-40">
-      <div className="max-w-sm mx-auto">
-        <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide -mx-6 px-6">
-          <button className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm hover:bg-gray-50 transition-colors">
-            Optimise my evening
-          </button>
-          <button className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm hover:bg-gray-50 transition-colors">
-            Review today's goals
-          </button>
-          <button className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm hover:bg-gray-50 transition-colors">
-            Enter deep focus
-          </button>
-        </div>
-        
-        <div className="relative flex items-center">
-          <button className="absolute left-4 w-8 h-8 bg-[#E5F3E8] text-[#405C4A] rounded-full flex items-center justify-center hover:scale-105 transition-transform z-10">
-            <Plus size={18} />
-          </button>
-          <input 
-            type="text" 
-            placeholder="Design your intent..." 
-            className="w-full bg-white border border-gray-200 rounded-full py-4 pl-16 pr-14 text-base focus:outline-none focus:ring-2 focus:ring-[#405C4A]/20 transition-all shadow-sm"
-          />
-          <button className="absolute right-4 w-8 h-8 bg-[#405C4A] text-white rounded-full flex items-center justify-center hover:scale-105 transition-transform z-10">
-            <Send size={14} className="ml-0.5" />
-          </button>
-        </div>
-      </div>
-    </div>
-
-  </motion.div>
-);
+    </motion.div>
+  );
+};

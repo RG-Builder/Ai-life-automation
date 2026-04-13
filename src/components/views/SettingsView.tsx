@@ -69,14 +69,15 @@ export const SettingsView: React.FC = () => {
           {[
             { id: 'elite', name: 'Elite AI', desc: 'High-performance tactical interface' },
             { id: 'simple', name: 'Simple', desc: 'Clean, friendly, and approachable' },
-            { id: 'minimal', name: 'Minimal', desc: 'Zero distractions, pure focus' }
+            { id: 'minimal', name: 'Minimal', desc: 'Zero distractions, pure focus' },
+            { id: 'gamified', name: 'Gamified', desc: 'Playful and rewarding experience' }
           ].map(t => (
             <motion.button 
               key={t.id}
               variants={theme.motion.variants.item}
               whileHover={theme.motion.hover}
               whileTap={theme.motion.tap}
-              onClick={() => setTheme(t.id)}
+              onClick={() => setTheme(t.id as any)}
               className={`stitch-card p-6 text-left transition-all group ${theme.id === t.id ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border hover:border-primary/30'}`}
             >
               <div className={`text-xs font-black uppercase tracking-widest mb-1 ${theme.id === t.id ? 'text-primary' : 'text-text_secondary'}`}>{t.name}</div>

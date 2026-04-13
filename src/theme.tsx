@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export type ThemeType = 'elite' | 'simple' | 'minimal';
+export type ThemeType = 'elite' | 'simple' | 'minimal' | 'gamified';
 
 export interface ThemeTokens {
   id: ThemeType;
@@ -48,6 +48,7 @@ export interface ThemeTokens {
     activeTasks: string;
     activeFocus: string;
     score: string;
+    schedule: string;
   };
   motion: {
     transition: any;
@@ -107,6 +108,7 @@ export const themes: Record<ThemeType, ThemeTokens> = {
       activeTasks: 'Active Missions',
       activeFocus: 'Active Missions',
       score: 'Efficiency Score',
+      schedule: 'Neural Timeline',
     },
     motion: {
       transition: { type: "spring", stiffness: 300, damping: 30 },
@@ -172,6 +174,7 @@ export const themes: Record<ThemeType, ThemeTokens> = {
       activeTasks: 'Up Next',
       activeFocus: 'Up Next',
       score: 'Weekly Goal',
+      schedule: 'Schedule',
     },
     motion: {
       transition: { type: "spring", stiffness: 400, damping: 15 },
@@ -237,6 +240,7 @@ export const themes: Record<ThemeType, ThemeTokens> = {
       activeTasks: 'Focus Items',
       activeFocus: 'Focus Items',
       score: 'Daily Score',
+      schedule: 'Timeline',
     },
     motion: {
       transition: { duration: 0.2, ease: "linear" },
@@ -255,6 +259,72 @@ export const themes: Record<ThemeType, ThemeTokens> = {
       },
       hover: { opacity: 0.8 },
       tap: { opacity: 0.6 }
+    },
+  },
+  gamified: {
+    id: 'gamified',
+    name: 'Gamified',
+    isDark: false,
+    colors: {
+      background: '#F4F9E7',
+      surface: '#FFFFFF',
+      primary: '#2C5A0D',
+      secondary: '#5C7A46',
+      accent: '#73F02D',
+      text_primary: '#2C5A0D',
+      text_secondary: '#5C7A46',
+      border: 'rgba(44, 90, 13, 0.1)',
+      success: '#73F02D',
+      danger: '#FF5A36',
+      elevation: '0 4px 12px rgba(44, 90, 13, 0.1)',
+    },
+    typography: {
+      fontSans: '"Outfit", "Inter", sans-serif',
+      fontMono: 'monospace',
+      headingWeight: '900',
+      bodyWeight: '600',
+    },
+    spacing: {
+      borderRadius: '32px',
+      padding: '24px',
+      cardPadding: '24px',
+    },
+    wording: {
+      dashboard: 'Pilot Dashboard',
+      missions: 'Mission Matrix',
+      focusScore: 'Efficiency Index',
+      execute: 'Execute Mission',
+      insight: 'Neural Insight',
+      timeline: 'Neural Timeline',
+      awareness: 'Self Awareness',
+      pilot: 'Pilot My Day',
+      neuralSync: 'Neural Sync: Active',
+      tasks: 'Missions',
+      dailyGoal: 'Efficiency',
+      efficiency: 'Efficiency',
+      activeMissions: 'Active Missions',
+      activeTasks: 'Active Missions',
+      activeFocus: 'Active Missions',
+      score: 'Efficiency Score',
+      schedule: 'Neural Timeline',
+    },
+    motion: {
+      transition: { type: "spring", stiffness: 300, damping: 20 },
+      variants: {
+        container: {
+          hidden: { opacity: 0 },
+          show: {
+            opacity: 1,
+            transition: { staggerChildren: 0.05 }
+          }
+        },
+        item: {
+          hidden: { opacity: 0, y: 20 },
+          show: { opacity: 1, y: 0 }
+        }
+      },
+      hover: { scale: 1.02 },
+      tap: { scale: 0.98 }
     },
   },
 };

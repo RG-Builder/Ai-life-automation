@@ -1,5 +1,5 @@
 import React from 'react';
-import { ThemeProvider, useTheme } from './components/ThemeContext';
+import { ThemeProvider, useTheme } from './theme';
 import { AppProvider } from './context/AppContext';
 import { MinimalTheme } from './components/MinimalTheme';
 import { GamifiedTheme } from './components/GamifiedTheme';
@@ -23,19 +23,19 @@ const ThemeSwitcher = () => {
         <div className="absolute top-12 right-0 bg-white rounded-xl shadow-xl border border-gray-100 p-2 flex flex-col gap-1 min-w-[120px]">
           <button 
             onClick={() => { setTheme('minimal'); setIsOpen(false); }}
-            className={`px-4 py-2 text-sm text-left rounded-lg transition-colors ${theme === 'minimal' ? 'bg-gray-100 font-bold text-black' : 'hover:bg-gray-50 text-gray-700'}`}
+            className={`px-4 py-2 text-sm text-left rounded-lg transition-colors ${theme.id === 'minimal' ? 'bg-gray-100 font-bold text-black' : 'hover:bg-gray-50 text-gray-700'}`}
           >
             Minimal
           </button>
           <button 
             onClick={() => { setTheme('gamified'); setIsOpen(false); }}
-            className={`px-4 py-2 text-sm text-left rounded-lg transition-colors ${theme === 'gamified' ? 'bg-[#F4F9E7] text-[#2C5A0D] font-bold' : 'hover:bg-gray-50 text-gray-700'}`}
+            className={`px-4 py-2 text-sm text-left rounded-lg transition-colors ${theme.id === 'gamified' ? 'bg-[#F4F9E7] text-[#2C5A0D] font-bold' : 'hover:bg-gray-50 text-gray-700'}`}
           >
             Gamified
           </button>
           <button 
             onClick={() => { setTheme('elite'); setIsOpen(false); }}
-            className={`px-4 py-2 text-sm text-left rounded-lg transition-colors ${theme === 'elite' ? 'bg-black text-[#00FF41] font-bold' : 'hover:bg-gray-50 text-gray-700'}`}
+            className={`px-4 py-2 text-sm text-left rounded-lg transition-colors ${theme.id === 'elite' ? 'bg-black text-[#00FF41] font-bold' : 'hover:bg-gray-50 text-gray-700'}`}
           >
             Elite
           </button>
@@ -48,7 +48,7 @@ const ThemeSwitcher = () => {
 const AppContent = () => {
   const { theme } = useTheme();
 
-  switch (theme) {
+  switch (theme.id) {
     case 'minimal':
       return <MinimalTheme />;
     case 'gamified':

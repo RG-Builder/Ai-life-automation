@@ -1,15 +1,26 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Mission, ScheduleItem } from '../types';
+import { Mission, ScheduleItem, Habit, MotivationState } from '../types';
 import { generateScheduleWithAI } from '../services/geminiService';
 
 interface AppContextType {
   tasks: Mission[];
+  missions: Mission[]; // Alias for tasks
   completedTasks: Mission[];
   overdueTasks: Mission[];
   currentFocusTask: Mission | null;
   lifeScore: number;
   streak: number;
   schedule: ScheduleItem[];
+  habits: Habit[];
+  isLoading: boolean;
+  loading: boolean; // Alias for isLoading
+  error: string | null;
+  
+  // Legacy/Additional fields for other components
+  userProfile: any;
+  motivationState: MotivationState | null;
+  dailyScore: number;
+  timelineMatrix: any;
   
   // Actions
   addTask: (task: Partial<Mission>) => void;
@@ -19,7 +30,21 @@ interface AppContextType {
   setFocusTask: (task: Mission | null) => void;
   updateLifeScore: (score: number) => void;
   updateStreak: (streak: number) => void;
-  generateSchedule: () => void;
+  generateSchedule: () => Promise<void>;
+  
+  // Legacy/Additional actions
+  handleAction: (actionId: string, data?: any) => Promise<void>;
+  generateDayPlan: () => Promise<void>;
+  generateAiInsights: () => Promise<void>;
+  
+  // Habit Actions
+  addHabit: (habit: Partial<Habit>) => void;
+  updateHabit: (habitId: string, updates: Partial<Habit>) => void;
+  toggleHabit: (habitId: string) => void;
+  deleteHabit: (habitId: string) => void;
+  
+  // UI Actions
+  setError: (error: string | null) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -64,6 +89,32 @@ const INITIAL_SCHEDULE: ScheduleItem[] = [
   { id: 's4', title: 'Creative Review', startTime: '15:00', endTime: '16:30', duration: '1.5h', type: 'meeting', completed: false },
 ];
 
+const INITIAL_HABITS: Habit[] = [
+  {
+    id: 'h1',
+    title: 'Hydration Ritual',
+    description: 'Drink 3L of water',
+    frequency: 'daily',
+    goal_count: 3000,
+    current_count: 1800,
+    streak: 24,
+    category: 'Health',
+    created_at: new Date().toISOString()
+  },
+  {
+    id: 'h2',
+    title: 'Morning Stillness',
+    description: '10 min meditation',
+    frequency: 'daily',
+    goal_count: 1,
+    current_count: 1,
+    streak: 8,
+    category: 'Mindset',
+    last_completed_at: new Date().toISOString(),
+    created_at: new Date().toISOString()
+  }
+];
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tasks, setTasks] = useState<Mission[]>(() => {
     const saved = localStorage.getItem('lifepilot_tasks');
@@ -90,12 +141,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : INITIAL_SCHEDULE;
   });
 
+  const [habits, setHabits] = useState<Habit[]>(() => {
+    const saved = localStorage.getItem('lifepilot_habits');
+    return saved ? JSON.parse(saved) : INITIAL_HABITS;
+  });
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   // Save to localStorage on change
   useEffect(() => { localStorage.setItem('lifepilot_tasks', JSON.stringify(tasks)); }, [tasks]);
   useEffect(() => { localStorage.setItem('lifepilot_focus', JSON.stringify(currentFocusTask)); }, [currentFocusTask]);
   useEffect(() => { localStorage.setItem('lifepilot_score', lifeScore.toString()); }, [lifeScore]);
   useEffect(() => { localStorage.setItem('lifepilot_streak', streak.toString()); }, [streak]);
   useEffect(() => { localStorage.setItem('lifepilot_schedule', JSON.stringify(schedule)); }, [schedule]);
+  useEffect(() => { localStorage.setItem('lifepilot_habits', JSON.stringify(habits)); }, [habits]);
 
   // Derived state
   const completedTasks = tasks.filter(t => t.status === 'completed');
@@ -166,26 +226,88 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateLifeScore = (score: number) => setLifeScore(score);
   const updateStreak = (newStreak: number) => setStreak(newStreak);
 
+  const addHabit = (habit: Partial<Habit>) => {
+    const newHabit: Habit = {
+      id: Math.random().toString(36).substr(2, 9),
+      title: habit.title || 'New Habit',
+      description: habit.description || '',
+      frequency: habit.frequency || 'daily',
+      goal_count: habit.goal_count || 1,
+      current_count: 0,
+      streak: 0,
+      category: habit.category || 'General',
+      created_at: new Date().toISOString(),
+      ...habit
+    };
+    setHabits(prev => [...prev, newHabit]);
+  };
+
+  const updateHabit = (habitId: string, updates: Partial<Habit>) => {
+    setHabits(prev => prev.map(h => h.id === habitId ? { ...h, ...updates } : h));
+  };
+
+  const toggleHabit = (habitId: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    setHabits(prev => prev.map(h => {
+      if (h.id === habitId) {
+        const isCompletedToday = h.last_completed_at?.startsWith(today);
+        if (isCompletedToday) {
+          // Un-complete
+          return { ...h, last_completed_at: undefined, current_count: Math.max(0, h.current_count - 1) };
+        } else {
+          // Complete
+          return { 
+            ...h, 
+            last_completed_at: new Date().toISOString(), 
+            current_count: h.current_count + 1,
+            streak: h.streak + 1
+          };
+        }
+      }
+      return h;
+    }));
+  };
+
+  const deleteHabit = (habitId: string) => {
+    setHabits(prev => prev.filter(h => h.id !== habitId));
+  };
+
   const generateSchedule = async () => {
+    setIsLoading(true);
+    setError(null);
     try {
       const newSchedule = await generateScheduleWithAI(tasks);
       if (newSchedule && newSchedule.length > 0) {
         setSchedule(newSchedule);
+      } else {
+        setError("AI could not generate a valid schedule. Please try again.");
       }
-    } catch (error) {
-      console.error("Failed to generate schedule:", error);
+    } catch (err) {
+      console.error("Failed to generate schedule:", err);
+      setError("Failed to connect to AI service. Please check your connection.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <AppContext.Provider value={{
       tasks,
+      missions: tasks,
       completedTasks,
       overdueTasks,
       currentFocusTask,
       lifeScore,
       streak,
       schedule,
+      habits,
+      isLoading,
+      loading: isLoading,
+      error,
+      userProfile: null,
+      motivationState: null,
+      dailyScore: lifeScore,
+      timelineMatrix: null,
       addTask,
       completeTask,
       deleteTask,
@@ -193,7 +315,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setFocusTask,
       updateLifeScore,
       updateStreak,
-      generateSchedule
+      generateSchedule,
+      handleAction: async (id, data) => console.log('Action:', id, data),
+      generateDayPlan: generateSchedule,
+      generateAiInsights: async () => {},
+      addHabit,
+      updateHabit,
+      toggleHabit,
+      deleteHabit,
+      setError
     }}>
       {children}
     </AppContext.Provider>

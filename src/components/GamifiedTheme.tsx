@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { 
   LayoutGrid, 
   Calendar, 
@@ -10,7 +11,6 @@ import {
   Clock,
   Mail,
   Dumbbell,
-  Wallet,
   Plus,
   Play,
   Lock,
@@ -18,22 +18,52 @@ import {
   Zap,
   BookOpen,
   Trophy,
-  Star
+  Star,
+  X,
+  Loader2,
+  AlertCircle,
+  Trash2,
+  Edit2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { TaskModal } from './TaskModal';
+import { HabitModal } from './HabitModal';
+import { Mission, Habit } from '../types';
 
 // --- GAMIFIED THEME COMPONENTS ---
 
 export const GamifiedTheme: React.FC = () => {
   const [activeTab, setActiveTab] = useState('missions');
+  const { firebaseUser } = useAuth();
+  const { error, setError } = useAppContext();
 
   return (
     <div className="min-h-screen bg-[#F4F9E7] text-[#2C5A0D] font-sans selection:bg-[#73F02D]/30 flex flex-col">
+      {/* Error Toast */}
+      <AnimatePresence>
+        {error && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-sm"
+          >
+            <div className="bg-white border border-red-200 rounded-2xl p-4 shadow-xl flex items-center gap-3">
+              <AlertCircle className="text-red-500 shrink-0" size={20} />
+              <p className="text-sm text-gray-700 flex-1">{error}</p>
+              <button onClick={() => setError(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={16} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <header className="px-6 pt-12 pb-4 flex justify-between items-center sticky top-0 bg-[#F4F9E7]/80 backdrop-blur-md z-50">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <img src="https://i.pravatar.cc/150?img=11" alt="Profile" className="w-10 h-10 rounded-full border-2 border-[#2C5A0D]" />
+            <img src={firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="Profile" className="w-10 h-10 rounded-full border-2 border-[#2C5A0D] object-cover" />
             <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#73F02D] rounded-full border-2 border-[#F4F9E7]"></div>
           </div>
           <div>
@@ -93,14 +123,30 @@ const NavItem = ({ id, icon, label, active, onClick }: { id: string, icon: React
 // --- SCREENS ---
 
 const MissionsScreen = () => {
-  const { tasks, currentFocusTask, setFocusTask, completeTask, streak } = useAppContext();
+  const { tasks, currentFocusTask, setFocusTask, completeTask, streak, deleteTask, habits } = useAppContext();
+  const { firebaseUser } = useAuth();
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState<Mission | null>(null);
+  
   const pendingTasks = tasks.filter(t => t.status === 'pending');
+  const completedToday = tasks.filter(t => t.status === 'completed');
+  const activeHabits = habits.filter(h => h.last_completed_at?.startsWith(new Date().toISOString().split('T')[0]));
+
+  const handleEditTask = (task: Mission) => {
+    setTaskToEdit(task);
+    setIsTaskModalOpen(true);
+  };
+
+  const handleAddTask = () => {
+    setTaskToEdit(null);
+    setIsTaskModalOpen(true);
+  };
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
       <div className="flex justify-between items-end pt-2">
         <div>
-          <h2 className="text-4xl font-black text-[#2C5A0D] leading-tight">Good Morning,<br/>Captain! 🚀</h2>
+          <h2 className="text-4xl font-black text-[#2C5A0D] leading-tight">Good Morning,<br/>{firebaseUser?.displayName?.split(' ')[0] || 'Captain'}! 🚀</h2>
           <p className="text-[#5C7A46] font-medium mt-2 text-sm">You have {pendingTasks.length} missions left<br/>for today.</p>
         </div>
         <div className="bg-white rounded-full py-2 px-4 shadow-sm border border-[#2C5A0D]/5 flex items-center gap-2">
@@ -173,25 +219,44 @@ const MissionsScreen = () => {
         
         <div className="space-y-3">
           {pendingTasks.map(task => (
-            <div key={task.id} onClick={() => setFocusTask(task)} className="cursor-pointer">
-              <QuestCard 
-                icon={<CheckCircle2 size={20} />} 
-                iconBg="bg-[#FFEDD5]" 
-                iconColor="text-[#D97706]" 
-                title={task.title} 
-                desc={`Category: ${task.category} • ${task.duration}m`} 
-                tag={task.priority?.toUpperCase() || 'NORMAL'} 
-                tagColor={task.priority === 'high' ? "bg-[#FEF3C7] text-[#D97706]" : "bg-[#E2EDCE] text-[#5C7A46]"} 
-              />
+            <div key={task.id} className="group relative">
+              <div onClick={() => setFocusTask(task)} className="cursor-pointer">
+                <QuestCard 
+                  icon={<CheckCircle2 size={20} />} 
+                  iconBg="bg-[#FFEDD5]" 
+                  iconColor="text-[#D97706]" 
+                  title={task.title} 
+                  desc={`Category: ${task.category} • ${task.duration}m`} 
+                  tag={task.priority?.toUpperCase() || 'NORMAL'} 
+                  tagColor={task.priority === 'high' ? "bg-[#FEF3C7] text-[#D97706]" : "bg-[#E2EDCE] text-[#5C7A46]"} 
+                />
+              </div>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); handleEditTask(task); }}
+                  className="p-2 text-blue-400 hover:text-blue-600"
+                >
+                  <Edit2 size={18} />
+                </button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); if(confirm('Delete quest?')) deleteTask(task.id); }}
+                  className="p-2 text-red-400 hover:text-red-600"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
             </div>
           ))}
           {pendingTasks.length === 0 && (
             <p className="text-center text-[#5C7A46] py-4 font-bold">All quests completed! 🎉</p>
           )}
           
-          <button className="w-full border-2 border-dashed border-[#A3C08F] rounded-3xl py-5 flex flex-col items-center justify-center text-[#5C7A46] hover:bg-[#A3C08F]/10 transition-colors">
+          <button 
+            onClick={handleAddTask}
+            className="w-full border-2 border-dashed border-[#A3C08F] rounded-3xl py-5 flex flex-col items-center justify-center text-[#5C7A46] hover:bg-[#A3C08F]/10 transition-colors"
+          >
             <Plus size={24} className="mb-1" />
-            <span className="text-[10px] font-black tracking-widest uppercase">GENERATE AI QUEST</span>
+            <span className="text-[10px] font-black tracking-widest uppercase">CREATE NEW QUEST</span>
           </button>
         </div>
       </div>
@@ -201,31 +266,46 @@ const MissionsScreen = () => {
         <Trophy size={120} className="absolute -right-6 -bottom-6 text-[#FFB370] opacity-30" />
         <h3 className="text-xl font-black text-[#92400E] mb-4">Daily Wins</h3>
         <div className="space-y-3 mb-6 relative z-10">
-          <WinItem checked text="Morning Routine" />
-          <WinItem checked text="Deep Focus I" />
-          <WinItem checked={false} text="Reflection Log" />
+          {completedToday.slice(0, 3).map(task => (
+            <WinItem key={task.id} checked text={task.title} />
+          ))}
+          {activeHabits.slice(0, 2).map(habit => (
+            <WinItem key={habit.id} checked text={habit.title} />
+          ))}
+          {completedToday.length === 0 && activeHabits.length === 0 && (
+            <p className="text-[#92400E] font-bold italic text-sm">No wins yet today. Let's get started!</p>
+          )}
         </div>
         <div className="bg-white/40 rounded-2xl p-4 text-center relative z-10 backdrop-blur-sm">
-          <div className="text-3xl font-black text-[#92400E] leading-none mb-1">2/3</div>
-          <div className="text-[10px] font-black tracking-widest uppercase text-[#B45309]">ALMOST THERE!</div>
+          <div className="text-3xl font-black text-[#92400E] leading-none mb-1">
+            {completedToday.length + activeHabits.length}
+          </div>
+          <div className="text-[10px] font-black tracking-widest uppercase text-[#B45309]">MISSIONS COMPLETED</div>
         </div>
       </div>
 
       {/* Pilot Tip */}
       <div className="bg-[#E7F6D5] rounded-[32px] p-6 flex gap-4 items-start">
         <div className="bg-[#73F02D] p-3 rounded-2xl shadow-sm shrink-0">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2C5A0D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a2 2 0 0 1 2 2c-.11.88-.33 1.74-.66 2.55A6 6 0 0 1 18 12c0 1.96-.94 3.7-2.4 4.8A6.01 6.01 0 0 1 12 22a6 6 0 0 1-3.6-1.2A6 6 0 0 1 6 12a6 6 0 0 1 4.66-5.45A9.98 9.98 0 0 0 10 4a2 2 0 0 1 2-2z"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <Zap size={24} className="text-[#2C5A0D]" />
         </div>
         <div>
           <p className="text-[#2C5A0D] font-bold italic text-sm leading-relaxed mb-4">
-            "Hey Captain! I noticed your energy levels dip around 3 PM. Should we schedule a 10-minute 'Power Recharge' quest then?"
+            "Hey Captain! You're on a {streak} day streak. Let's keep the momentum going and crush those priority quests!"
           </p>
           <div className="flex gap-2">
-            <button className="bg-[#2C5A0D] text-white text-xs font-black px-4 py-2 rounded-xl shadow-[0_3px_0_#1A3608] active:translate-y-[3px] active:shadow-none">YES, PILOT!</button>
+            <button 
+              onClick={() => pendingTasks.length > 0 && setFocusTask(pendingTasks[0])}
+              className="bg-[#2C5A0D] text-white text-xs font-black px-4 py-2 rounded-xl shadow-[0_3px_0_#1A3608] active:translate-y-[3px] active:shadow-none"
+            >
+              YES, PILOT!
+            </button>
             <button className="text-[#5C7A46] text-xs font-black px-4 py-2 uppercase tracking-wider">MAYBE LATER</button>
           </div>
         </div>
       </div>
+
+      <TaskModal isOpen={isTaskModalOpen} onClose={() => setIsTaskModalOpen(false)} taskToEdit={taskToEdit} />
     </motion.div>
   );
 };
@@ -245,7 +325,7 @@ const QuestCard = ({ icon, iconBg, iconColor, title, desc, tag, tagColor }: any)
   </div>
 );
 
-const WinItem = ({ checked, text }: { checked: boolean, text: string }) => (
+const WinItem = ({ checked, text }: { checked: boolean, text: string, key?: any }) => (
   <div className="flex items-center gap-3">
     <div className={cn("w-6 h-6 rounded-full flex items-center justify-center border-2", checked ? "bg-[#92400E] border-[#92400E] text-[#FFD1A9]" : "border-[#B45309] text-transparent")}>
       <CheckCircle2 size={14} strokeWidth={3} />
@@ -255,7 +335,7 @@ const WinItem = ({ checked, text }: { checked: boolean, text: string }) => (
 );
 
 const ScheduleScreen = () => {
-  const { schedule, generateSchedule, lifeScore } = useAppContext();
+  const { schedule, generateSchedule, lifeScore, isLoading, completeTask } = useAppContext();
   
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8 pt-4">
@@ -273,7 +353,7 @@ const ScheduleScreen = () => {
           </div>
         </div>
         <div className="h-3 bg-[#F4F9E7] rounded-full overflow-hidden mb-4">
-          <div className="h-full bg-[#73F02D] rounded-full" style={{ width: `${(lifeScore / 1200) * 100}%` }}></div>
+          <div className="h-full bg-[#73F02D] rounded-full transition-all duration-500" style={{ width: `${Math.min((lifeScore / 1200) * 100, 100)}%` }}></div>
         </div>
         <p className="text-[#5C7A46] text-sm font-medium italic">"Keep completing missions to level up!"</p>
       </div>
@@ -285,17 +365,18 @@ const ScheduleScreen = () => {
         </div>
         <button 
           onClick={generateSchedule}
-          className="w-10 h-10 bg-[#73F02D] text-[#2C5A0D] rounded-full flex items-center justify-center shadow-md active:translate-y-1 transition-transform"
+          disabled={isLoading}
+          className="w-10 h-10 bg-[#73F02D] text-[#2C5A0D] rounded-full flex items-center justify-center shadow-md active:translate-y-1 transition-transform disabled:opacity-50"
         >
-          <Plus size={20} strokeWidth={3} />
+          {isLoading ? <Loader2 size={20} className="animate-spin" /> : <Plus size={20} strokeWidth={3} />}
         </button>
       </div>
 
       {/* Timeline */}
       <div className="relative pl-6 space-y-8 before:absolute before:left-[11px] before:top-2 before:bottom-0 before:w-1 before:bg-[#E7F6D5] before:rounded-full">
         {schedule.map((item, index) => {
-          const isPast = index === 0; // Mocking past state for the first item
-          const isActive = index === 1; // Mocking active state for the second item
+          const isPast = item.status === 'completed';
+          const isActive = item.status === 'in-progress';
           
           if (isPast) {
             return (
@@ -340,7 +421,10 @@ const ScheduleScreen = () => {
                       <Clock size={16} strokeWidth={3} /> {item.startTime}
                     </div>
                   </div>
-                  <button className="w-full bg-[#2C5A0D] text-white font-black py-4 rounded-2xl shadow-[0_4px_0_#1A3608] active:translate-y-1 active:shadow-none transition-all">
+                  <button 
+                    onClick={() => completeTask(item.id)}
+                    className="w-full bg-[#2C5A0D] text-white font-black py-4 rounded-2xl shadow-[0_4px_0_#1A3608] active:translate-y-1 active:shadow-none transition-all"
+                  >
                     COMPLETE MISSION
                   </button>
                 </div>
@@ -367,181 +451,187 @@ const ScheduleScreen = () => {
           );
         })}
         {schedule.length === 0 && (
-          <p className="text-center text-[#5C7A46] py-4 font-bold">No quests scheduled yet.</p>
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-16 h-16 bg-[#E7F6D5] rounded-full flex items-center justify-center text-[#5C7A46] mb-4">
+              <Calendar size={32} />
+            </div>
+            <p className="text-[#5C7A46] font-bold">No quests scheduled yet.</p>
+            <button 
+              onClick={generateSchedule}
+              className="mt-4 text-[#2C5A0D] font-black text-sm underline underline-offset-4"
+            >
+              Generate AI Schedule
+            </button>
+          </div>
         )}
       </div>
       
       <button 
         onClick={generateSchedule}
-        className="fixed bottom-28 right-6 w-14 h-14 bg-[#92400E] text-white rounded-full flex items-center justify-center shadow-lg shadow-[#92400E]/30 z-40 active:scale-95 transition-transform"
+        disabled={isLoading}
+        className="fixed bottom-28 right-6 w-14 h-14 bg-[#92400E] text-white rounded-full flex items-center justify-center shadow-lg shadow-[#92400E]/30 z-40 active:scale-95 transition-transform disabled:opacity-50"
       >
-        <Plus size={28} strokeWidth={3} />
+        {isLoading ? <Loader2 className="animate-spin" /> : <Plus size={28} strokeWidth={3} />}
       </button>
     </motion.div>
   );
 };
 
-const ChatScreen = () => (
-  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="pt-4 flex flex-col h-[calc(100vh-180px)]">
-    
-    <div className="flex flex-col items-center mb-8">
-      <div className="w-20 h-20 bg-[#38BDF8] rounded-full flex items-center justify-center text-white shadow-lg shadow-[#38BDF8]/20 mb-4 border-4 border-white">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
-      </div>
-      <div className="bg-[#92400E] text-white text-[10px] font-black px-3 py-1 rounded-full tracking-widest uppercase -mt-8 z-10 border-2 border-[#F4F9E7]">ARCHITECT</div>
-      <h2 className="text-3xl font-black text-[#2C5A0D] mt-3">Mission Control 🚀</h2>
-      <p className="text-[#5C7A46] font-medium text-sm">Ready to crush your goals today, Captain?</p>
-    </div>
-
-    <div className="flex-1 overflow-y-auto space-y-6 pb-4">
-      {/* Bot Message */}
-      <div className="flex gap-3 items-end">
-        <div className="w-8 h-8 bg-[#0284C7] rounded-full flex items-center justify-center text-white shrink-0 shadow-sm">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/></svg>
+const ChatScreen = () => {
+  const { firebaseUser } = useAuth();
+  
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="pt-4 flex flex-col h-[calc(100vh-180px)]">
+      
+      <div className="flex flex-col items-center mb-8">
+        <div className="w-20 h-20 bg-[#38BDF8] rounded-full flex items-center justify-center text-white shadow-lg shadow-[#38BDF8]/20 mb-4 border-4 border-white overflow-hidden">
+          <img src={firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="Pilot" className="w-full h-full object-cover" />
         </div>
-        <div className="bg-[#38BDF8] text-white p-5 rounded-[28px] rounded-bl-sm shadow-sm max-w-[85%]">
-          <p className="font-medium leading-relaxed">Hey there! You've been on a roll with your morning meditation streak. 🧘‍♂️ Want to lock in your main quest for today or should we review your energy levels first?</p>
-        </div>
+        <div className="bg-[#92400E] text-white text-[10px] font-black px-3 py-1 rounded-full tracking-widest uppercase -mt-8 z-10 border-2 border-[#F4F9E7]">ARCHITECT</div>
+        <h2 className="text-3xl font-black text-[#2C5A0D] mt-3">Mission Control 🚀</h2>
+        <p className="text-[#5C7A46] font-medium text-sm">Ready to crush your goals today, {firebaseUser?.displayName?.split(' ')[0] || 'Captain'}?</p>
       </div>
 
-      {/* User Message */}
-      <div className="flex gap-3 items-end justify-end">
-        <div className="bg-[#2C5A0D] text-white p-5 rounded-[28px] rounded-br-sm shadow-sm max-w-[85%]">
-          <p className="font-medium leading-relaxed">I'm feeling super energized today! Let's plan a big quest. ⚡</p>
+      <div className="flex-1 overflow-y-auto space-y-6 pb-4">
+        {/* Bot Message */}
+        <div className="flex gap-3 items-end">
+          <div className="w-8 h-8 bg-[#0284C7] rounded-full flex items-center justify-center text-white shrink-0 shadow-sm">
+            <Zap size={16} />
+          </div>
+          <div className="bg-[#38BDF8] text-white p-5 rounded-[28px] rounded-bl-sm shadow-sm max-w-[85%]">
+            <p className="font-medium leading-relaxed">Hey there! I'm your AI Pilot. I'm here to help you optimize your schedule and stay on track with your missions. What's on your mind?</p>
+          </div>
         </div>
-        <div className="w-8 h-8 bg-[#5C7A46] rounded-full flex items-center justify-center text-white shrink-0 shadow-sm">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </div>
-      </div>
 
-      {/* Bot Message */}
-      <div className="flex gap-3 items-end">
-        <div className="w-8 h-8 bg-[#0284C7] rounded-full flex items-center justify-center text-white shrink-0 shadow-sm">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/></svg>
-        </div>
-        <div className="bg-[#38BDF8] text-white p-5 rounded-[28px] rounded-bl-sm shadow-sm max-w-[85%]">
-          <p className="font-medium leading-relaxed mb-4">I love that energy! Let's channel it. Based on your goals, here are some epic missions we could tackle today:</p>
-          
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-2 px-2 snap-x">
-            <div className="bg-white rounded-3xl p-4 min-w-[160px] snap-center shadow-sm text-[#2C5A0D]">
-              <div className="text-3xl mb-2">✍️</div>
-              <h4 className="font-black leading-tight mb-1">Deep Work<br/>Block</h4>
-              <p className="text-[10px] text-[#5C7A46] font-medium">2 hours for Project Zenith</p>
-            </div>
-            <div className="bg-white rounded-3xl p-4 min-w-[160px] snap-center shadow-sm text-[#2C5A0D]">
-              <div className="text-3xl mb-2">🏃‍♂️</div>
-              <h4 className="font-black leading-tight mb-1">Power Cardio</h4>
-              <p className="text-[10px] text-[#5C7A46] font-medium">30 min high intensity</p>
-            </div>
+        {/* User Message */}
+        <div className="flex gap-3 items-end justify-end">
+          <div className="bg-[#2C5A0D] text-white p-5 rounded-[28px] rounded-br-sm shadow-sm max-w-[85%]">
+            <p className="font-medium leading-relaxed">I'm feeling super energized today! Let's plan a big quest. ⚡</p>
+          </div>
+          <div className="w-8 h-8 bg-[#5C7A46] rounded-full flex items-center justify-center text-white shrink-0 shadow-sm overflow-hidden">
+            <img src={firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="User" className="w-full h-full object-cover" />
           </div>
         </div>
       </div>
 
-      {/* Bot Message - PS */}
-      <div className="flex gap-3 items-end pl-11">
-        <div className="bg-[#FFD1A9] text-[#92400E] p-5 rounded-[28px] rounded-bl-sm shadow-sm max-w-[85%] flex gap-3 items-start">
-          <Flame size={20} className="shrink-0 mt-0.5 text-[#D97706]" />
-          <p className="font-bold leading-relaxed text-sm">P.S. You're only 2 days away from a Mega-Streak! Keep it up!</p>
-        </div>
+      {/* Action Buttons */}
+      <div className="flex gap-3 mt-auto pt-4 bg-gradient-to-t from-[#F4F9E7] via-[#F4F9E7] to-transparent">
+        <button className="flex-1 bg-[#2C5A0D] text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-[0_4px_0_#1A3608] active:translate-y-1 active:shadow-none transition-all">
+          <Plus size={18} strokeWidth={3} />
+          Plan my quest
+        </button>
+        <button className="flex-1 bg-[#92400E] text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-[0_4px_0_#78350F] active:translate-y-1 active:shadow-none transition-all">
+          <Flame size={18} strokeWidth={3} />
+          Review streaks
+        </button>
       </div>
-    </div>
+    </motion.div>
+  );
+};
 
-    {/* Action Buttons */}
-    <div className="flex gap-3 mt-auto pt-4 bg-gradient-to-t from-[#F4F9E7] via-[#F4F9E7] to-transparent">
-      <button className="flex-1 bg-[#2C5A0D] text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-[0_4px_0_#1A3608] active:translate-y-1 active:shadow-none transition-all">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-        Plan my quest
-      </button>
-      <button className="flex-1 bg-[#92400E] text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-[0_4px_0_#78350F] active:translate-y-1 active:shadow-none transition-all">
-        <Flame size={18} strokeWidth={3} />
-        Review streaks
-      </button>
-    </div>
-  </motion.div>
-);
+const StreaksScreen = () => {
+  const { streak, habits, toggleHabit, deleteHabit } = useAppContext();
+  const [isHabitModalOpen, setIsHabitModalOpen] = useState(false);
+  const [habitToEdit, setHabitToEdit] = useState<Habit | null>(null);
 
-const StreaksScreen = () => (
-  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6 pt-4">
-    
-    {/* Hero Streak */}
-    <div className="bg-[#E7F6D5] rounded-[32px] p-8 text-center relative overflow-hidden shadow-sm">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-[#FF5A36] text-white text-[10px] font-black px-4 py-1.5 rounded-b-xl tracking-widest uppercase shadow-sm">HERO STREAK</div>
+  const handleEditHabit = (habit: Habit) => {
+    setHabitToEdit(habit);
+    setIsHabitModalOpen(true);
+  };
+
+  const handleAddHabit = () => {
+    setHabitToEdit(null);
+    setIsHabitModalOpen(true);
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6 pt-4">
       
-      <h2 className="text-6xl font-black text-[#2C5A0D] mt-6 mb-2 flex items-baseline justify-center gap-2">
-        12 <span className="text-4xl text-[#D97706] italic">Days</span>
-      </h2>
-      <p className="text-[#5C7A46] font-medium mb-8 px-4">You're on fire! Complete today's missions to unlock the <strong className="text-[#2C5A0D]">Golden Pilot</strong> badge.</p>
-      
-      <div className="w-24 h-24 bg-white rounded-full mx-auto flex items-center justify-center shadow-lg shadow-[#73F02D]/20 border-4 border-[#F4F9E7]">
-        <Flame size={48} className="text-[#FF5A36]" strokeWidth={2.5} />
-      </div>
-    </div>
-
-    {/* Weekly XP */}
-    <div className="bg-white rounded-[32px] p-6 shadow-sm border border-[#2C5A0D]/5">
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-black text-[#2C5A0D]">Weekly XP Gain</h3>
-        <div className="flex gap-1">
-          <div className="w-2 h-2 rounded-full bg-[#2C5A0D]"></div>
-          <div className="w-2 h-2 rounded-full bg-[#E7F6D5]"></div>
+      {/* Hero Streak */}
+      <div className="bg-[#E7F6D5] rounded-[32px] p-8 text-center relative overflow-hidden shadow-sm">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-[#FF5A36] text-white text-[10px] font-black px-4 py-1.5 rounded-b-xl tracking-widest uppercase shadow-sm">HERO STREAK</div>
+        
+        <h2 className="text-6xl font-black text-[#2C5A0D] mt-6 mb-2 flex items-baseline justify-center gap-2">
+          {streak} <span className="text-4xl text-[#D97706] italic">Days</span>
+        </h2>
+        <p className="text-[#5C7A46] font-medium mb-8 px-4">You're on fire! Complete today's missions to unlock the <strong className="text-[#2C5A0D]">Golden Pilot</strong> badge.</p>
+        
+        <div className="w-24 h-24 bg-white rounded-full mx-auto flex items-center justify-center shadow-lg shadow-[#73F02D]/20 border-4 border-[#F4F9E7]">
+          <Flame size={48} className="text-[#FF5A36]" strokeWidth={2.5} />
         </div>
       </div>
-      
-      <div className="flex justify-between items-end h-32 pb-6 border-b-2 border-dashed border-[#E7F6D5]">
-        {/* Mock Chart Bars */}
-        <div className="w-8 bg-[#E7F6D5] rounded-t-xl h-[40%]"></div>
-        <div className="w-8 bg-[#E7F6D5] rounded-t-xl h-[60%]"></div>
-        <div className="w-8 bg-[#E7F6D5] rounded-t-xl h-[30%]"></div>
-        <div className="w-8 bg-[#2C5A0D] rounded-t-xl h-[80%] relative">
-          <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-4 h-1 bg-[#2C5A0D] rounded-full"></div>
+
+      {/* Weekly XP */}
+      <div className="bg-white rounded-[32px] p-6 shadow-sm border border-[#2C5A0D]/5">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-xl font-black text-[#2C5A0D]">Weekly XP Gain</h3>
+          <div className="flex gap-1">
+            <div className="w-2 h-2 rounded-full bg-[#2C5A0D]"></div>
+            <div className="w-2 h-2 rounded-full bg-[#E7F6D5]"></div>
+          </div>
         </div>
-        <div className="w-8 bg-transparent h-full"></div>
-        <div className="w-8 bg-transparent h-full"></div>
-        <div className="w-8 bg-transparent h-full"></div>
-      </div>
-      <div className="flex justify-between mt-3 px-1 text-[10px] font-black text-[#8A9E7B] uppercase tracking-widest">
-        <span>MON</span><span>TUE</span><span>WED</span><span className="text-[#2C5A0D]">THU</span><span>FRI</span><span>SAT</span><span>SUN</span>
-      </div>
-    </div>
-
-    {/* Pilot's Tip */}
-    <div className="bg-[#2C5A0D] rounded-[32px] p-6 text-white shadow-lg shadow-[#2C5A0D]/20">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/></svg>
+        
+        <div className="flex justify-between items-end h-32 pb-6 border-b-2 border-dashed border-[#E7F6D5]">
+          {/* Mock Chart Bars */}
+          <div className="w-8 bg-[#E7F6D5] rounded-t-xl h-[40%]"></div>
+          <div className="w-8 bg-[#E7F6D5] rounded-t-xl h-[60%]"></div>
+          <div className="w-8 bg-[#E7F6D5] rounded-t-xl h-[30%]"></div>
+          <div className="w-8 bg-[#2C5A0D] rounded-t-xl h-[80%] relative">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-4 h-1 bg-[#2C5A0D] rounded-full"></div>
+          </div>
+          <div className="w-8 bg-transparent h-full"></div>
+          <div className="w-8 bg-transparent h-full"></div>
+          <div className="w-8 bg-transparent h-full"></div>
         </div>
-        <h3 className="text-xl font-black">Pilot's Tip</h3>
+        <div className="flex justify-between mt-3 px-1 text-[10px] font-black text-[#8A9E7B] uppercase tracking-widest">
+          <span>MON</span><span>TUE</span><span>WED</span><span className="text-[#2C5A0D]">THU</span><span>FRI</span><span>SAT</span><span>SUN</span>
+        </div>
       </div>
-      <p className="text-[#A3C08F] font-medium leading-relaxed mb-6">"You usually crush your 'Hydration' mission before noon. Let's aim for a morning streak today!"</p>
-      <button className="w-full bg-white text-[#2C5A0D] font-black py-4 rounded-2xl shadow-[0_4px_0_#A3C08F] active:translate-y-1 active:shadow-none transition-all">
-        Start Mission
-      </button>
-    </div>
 
-    {/* Habit List */}
-    <div className="space-y-3">
-      <HabitItem icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>} title="Daily Hydration" streak="8 Day Streak" progress={60} checked />
-      <HabitItem icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a2 2 0 0 1 2 2c-.11.88-.33 1.74-.66 2.55A6 6 0 0 1 18 12c0 1.96-.94 3.7-2.4 4.8A6.01 6.01 0 0 1 12 22a6 6 0 0 1-3.6-1.2A6 6 0 0 1 6 12a6 6 0 0 1 4.66-5.45A9.98 9.98 0 0 0 10 4a2 2 0 0 1 2-2z"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>} title="Morning Zen" streak="12 Day Streak" progress={40} checked />
-      <HabitItem icon={<BookOpen size={20} />} title="Reading Quest" streak="0 Day Streak" progress={10} checked={false} />
-      <HabitItem icon={<Dumbbell size={20} />} title="Power Lift" streak="3 Day Streak" progress={100} checked />
-    </div>
-
-    {/* Unlocked Achievements */}
-    <div className="bg-white rounded-[32px] p-6 shadow-sm border border-[#2C5A0D]/5 mb-8">
-      <h3 className="text-xl font-black text-[#2C5A0D] mb-6">Unlocked<br/>Achievements</h3>
-      <div className="grid grid-cols-2 gap-4">
-        <Achievement icon={<Star size={24} />} bg="bg-[#FFEDD5]" color="text-[#D97706]" label="Early Bird" />
-        <Achievement icon={<Award size={24} />} bg="bg-[#E0F2FE]" color="text-[#0284C7]" label="Focus Master" />
-        <Achievement icon={<Trophy size={24} />} bg="bg-[#2C5A0D]" color="text-white" label="All-Star" />
-        <Achievement icon={<Lock size={24} />} bg="bg-[#F4F9E7]" color="text-[#A3C08F]" label="Marathon" locked />
+      {/* Habit List */}
+      <div className="space-y-3">
+        <div className="flex justify-between items-center mb-2 px-2">
+          <h3 className="text-xl font-black text-[#2C5A0D]">Rituals</h3>
+          <button 
+            onClick={handleAddHabit}
+            className="text-[#2C5A0D] hover:scale-110 transition-transform"
+          >
+            <Plus size={20} strokeWidth={3} />
+          </button>
+        </div>
+        {habits.map(habit => (
+          <HabitItem 
+            key={habit.id}
+            icon={habit.category === 'Health' ? <Dumbbell size={20} /> : habit.category === 'Mindset' ? <BookOpen size={20} /> : <Zap size={20} />} 
+            title={habit.title} 
+            streak={`${habit.streak} Day Streak`} 
+            progress={habit.goal_count > 0 ? (habit.current_count / habit.goal_count) * 100 : 0} 
+            checked={habit.last_completed_at?.startsWith(new Date().toISOString().split('T')[0]) || false}
+            onToggle={() => toggleHabit(habit.id)}
+            onDelete={() => { if(confirm('Delete ritual?')) deleteHabit(habit.id); }}
+            onEdit={() => handleEditHabit(habit)}
+          />
+        ))}
+        {habits.length === 0 && (
+          <div className="text-center py-8 bg-white/30 rounded-3xl border-2 border-dashed border-[#A3C08F]">
+            <p className="text-[#5C7A46] font-bold">No rituals added yet.</p>
+            <button 
+              onClick={handleAddHabit}
+              className="mt-2 text-[#2C5A0D] font-black text-sm"
+            >
+              + Add First Ritual
+            </button>
+          </div>
+        )}
       </div>
-    </div>
 
-  </motion.div>
-);
+      <HabitModal isOpen={isHabitModalOpen} onClose={() => setIsHabitModalOpen(false)} habitToEdit={habitToEdit} />
+    </motion.div>
+  );
+};
 
-const HabitItem = ({ icon, title, streak, progress, checked }: any) => (
-  <div className="bg-[#E7F6D5] rounded-3xl p-4 flex items-center gap-4">
+const HabitItem = ({ icon, title, streak, progress, checked, onToggle, onDelete, onEdit }: any) => (
+  <div className="bg-[#E7F6D5] rounded-3xl p-4 flex items-center gap-4 group relative">
     <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-[#2C5A0D] shrink-0 shadow-sm">
       {icon}
     </div>
@@ -551,11 +641,30 @@ const HabitItem = ({ icon, title, streak, progress, checked }: any) => (
         <Flame size={12} strokeWidth={3} /> {streak}
       </div>
       <div className="h-2 bg-white/50 rounded-full overflow-hidden">
-        <div className="h-full bg-[#73F02D]" style={{ width: `${progress}%` }}></div>
+        <div className="h-full bg-[#73F02D] transition-all duration-500" style={{ width: `${progress}%` }}></div>
       </div>
     </div>
-    <div className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors", checked ? "bg-[#2C5A0D] border-[#2C5A0D] text-white" : "border-[#A3C08F] text-transparent")}>
-      <CheckCircle2 size={20} strokeWidth={3} />
+    <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button 
+          onClick={onEdit}
+          className="p-1.5 text-blue-400 hover:text-blue-600"
+        >
+          <Edit2 size={16} />
+        </button>
+        <button 
+          onClick={onDelete}
+          className="p-1.5 text-red-400 hover:text-red-600"
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
+      <button 
+        onClick={onToggle}
+        className={cn("w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors", checked ? "bg-[#2C5A0D] border-[#2C5A0D] text-white" : "border-[#A3C08F] text-transparent")}
+      >
+        <CheckCircle2 size={20} strokeWidth={3} />
+      </button>
     </div>
   </div>
 );

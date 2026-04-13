@@ -30,6 +30,7 @@ export interface ScheduleItem {
   duration: string;
   type: 'deep-work' | 'meeting' | 'admin' | 'break' | 'routine';
   completed?: boolean;
+  status?: 'pending' | 'in-progress' | 'completed';
 }
 
 export interface User {
@@ -37,6 +38,7 @@ export interface User {
   email: string;
   plan: 'free' | 'premium';
   subscription_plan?: 'free' | 'premium' | 'trial'; // Added for compatibility
+  role?: string;
 }
 
 export interface LifeState {

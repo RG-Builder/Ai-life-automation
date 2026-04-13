@@ -155,7 +155,7 @@ export const FocusMode: React.FC<FocusModeProps> = ({ task, onClose }) => {
         >
           <motion.button 
             variants={theme.motion.variants.item}
-            whileHover={{ scale: 1.1, shadow: "0 0 70px var(--color-text-primary)" }}
+            whileHover={{ scale: 1.1, boxShadow: "0 0 70px var(--color-text-primary)" }}
             whileTap={{ scale: 0.9 }}
             onClick={() => setIsActive(!isActive)}
             className="size-24 md:size-28 rounded-full bg-text_primary text-background flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-[0_0_50px_var(--color-text-primary)]"
@@ -173,7 +173,7 @@ export const FocusMode: React.FC<FocusModeProps> = ({ task, onClose }) => {
           </motion.button>
           <motion.button 
             variants={theme.motion.variants.item}
-            whileHover={{ scale: 1.05, shadow: "0 0 40px var(--color-primary)" }}
+            whileHover={{ scale: 1.05, boxShadow: "0 0 40px var(--color-primary)" }}
             whileTap={{ scale: 0.95 }}
             onClick={onComplete}
             className="px-10 md:px-14 py-5 md:py-7 bg-primary text-black font-black uppercase tracking-widest rounded-2xl hover:scale-105 transition-all shadow-2xl shadow-primary/30"
