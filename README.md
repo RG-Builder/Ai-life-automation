@@ -1,20 +1,20 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Ai-life-automation
 
-# Run and deploy your AI Studio app
+## Firebase Setup (Optional)
 
-This contains everything you need to run your app locally.
+For full functionality with authentication and Firestore:
 
-View your app in AI Studio: https://ai.studio/apps/081e94ee-3f0c-4e02-8c9b-0200c6b3c314
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Create a new project
+3. Enable Authentication (Google Sign-In)
+4. Create a Firestore Database
+5. Get your config values and add to .env.local:
+```
+VITE_FIREBASE_API_KEY=your_key
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_APP_ID=your_app_id
+VITE_FIREBASE_DATABASE_ID=your_database_id
+```
 
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+**Note:** The app works in "Demo Mode" without Firebase config.

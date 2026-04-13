@@ -1,11 +1,22 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { initializeFirestore, getDocFromServer, doc } from 'firebase/firestore';
-import firebaseConfig from '../firebase-applet-config.json';
+
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "mock-api-key",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "mock-auth-domain",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "mock-project-id",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "mock-app-id",
+  databaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || "mock-database-id",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "mock-storage-bucket",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "mock-sender-id",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "mock-measurement-id",
+};
 
 console.log("🔥 Firebase initializing...");
 const app = initializeApp(firebaseConfig);
 console.log("✅ Firebase initialized");
+
 
 export const firebaseConfigExport = firebaseConfig;
 export const auth = getAuth(app);
@@ -24,11 +35,16 @@ export const db = initializeFirestore(
   {
     cacheSizeBytes: 10485760,
   },
-  firebaseConfig.firestoreDatabaseId
+  firebaseConfig.databaseId
 );
 
 // Test connection to Firestore
 async function testConnection() {
+  if (firebaseConfig.apiKey === "mock-api-key") {
+    console.log("ℹ️ Running in Demo Mode (Mock Firebase Config)");
+    return;
+  }
+  
   try {
     // Attempt to fetch a non-existent doc to test connection
     await getDocFromServer(doc(db, '_connection_test_', 'init'));

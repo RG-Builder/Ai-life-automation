@@ -32,16 +32,12 @@ export const generateScheduleWithAI = async (tasks: Mission[]): Promise<Schedule
 
     const token = await auth.currentUser?.getIdToken();
     
-    if (!token) {
-      console.warn("User not authenticated, falling back to mock schedule");
-      return [];
-    }
-
+    // Allow unauthenticated requests for demo mode
     const response = await fetch('/api/ai/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        ...(token && { 'Authorization': `Bearer ${token}` }) // Only add if token exists
       },
       body: JSON.stringify({
         prompt,
@@ -57,6 +53,12 @@ export const generateScheduleWithAI = async (tasks: Mission[]): Promise<Schedule
     const data = await response.json();
     
     if (data.text) {
+      // If it's the fallback static string, use the simple schedule
+      if (data.text.includes('Next Action:')) {
+        console.warn("AI returned static fallback, using simple schedule");
+        return generateSimpleSchedule(tasks.filter(t => t.status === 'pending'));
+      }
+
       // Try to extract JSON if the model wrapped it in markdown
       let jsonText = data.text;
       if (jsonText.includes('\`\`\`json')) {
@@ -72,6 +74,46 @@ export const generateScheduleWithAI = async (tasks: Mission[]): Promise<Schedule
     return [];
   } catch (error) {
     console.error("Error generating schedule with AI:", error);
-    return [];
+    // Fallback to simple time-based schedule if AI fails
+    return generateSimpleSchedule(tasks.filter(t => t.status === 'pending'));
   }
 };
+
+// Add fallback scheduler
+function generateSimpleSchedule(tasks: Mission[]): ScheduleItem[] {
+  const schedule: ScheduleItem[] = [];
+  let currentTime = 9 * 60; // Start at 9:00 AM
+  
+  tasks.forEach((task, index) => {
+    const startTime = `${Math.floor(currentTime / 60).toString().padStart(2, '0')}:${(currentTime % 60).toString().padStart(2, '0')}`;
+    currentTime += task.duration || 30;
+    const endTime = `${Math.floor(currentTime / 60).toString().padStart(2, '0')}:${(currentTime % 60).toString().padStart(2, '0')}`;
+    
+    schedule.push({
+      id: `generated-${index}`,
+      title: task.title,
+      startTime,
+      endTime,
+      duration: `${task.duration || 30}m`,
+      type: task.priority === 'high' ? 'deep-work' : 'admin',
+      completed: false
+    });
+    
+    // Add break after each task
+    currentTime += 15;
+    if (currentTime < 17 * 60) { // Before 5 PM
+      schedule.push({
+        id: `break-${index}`,
+        title: 'Break',
+        startTime: endTime,
+        endTime: `${Math.floor(currentTime / 60).toString().padStart(2, '0')}:${(currentTime % 60).toString().padStart(2, '0')}`,
+        duration: '15m',
+        type: 'break',
+        completed: false
+      });
+      currentTime += 15;
+    }
+  });
+  
+  return schedule;
+}

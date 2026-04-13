@@ -45,75 +45,18 @@ interface AppContextType {
   
   // UI Actions
   setError: (error: string | null) => void;
+  
+  habitHistory: Record<string, number>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const INITIAL_TASKS: Mission[] = [
-  {
-    id: '1',
-    title: 'Design System Overhaul',
-    status: 'pending',
-    priority: 'high',
-    deadline: new Date(Date.now() + 86400000).toISOString(),
-    duration: 45,
-    category: 'Deep Work',
-    impact: 'high',
-    urgency: 8,
-    importance: 9,
-    is_habit: false,
-    streak: 0,
-    created_at: new Date().toISOString()
-  },
-  {
-    id: '2',
-    title: 'Review PRs',
-    status: 'pending',
-    priority: 'medium',
-    deadline: new Date(Date.now() + 3600000).toISOString(),
-    duration: 60,
-    category: 'Engineering',
-    impact: 'moderate',
-    urgency: 5,
-    importance: 6,
-    is_habit: false,
-    streak: 0,
-    created_at: new Date().toISOString()
-  }
-];
+const INITIAL_TASKS: Mission[] = [];
 
-const INITIAL_SCHEDULE: ScheduleItem[] = [
-  { id: 's1', title: 'Deep Work: Core Logic', startTime: '09:00', endTime: '11:00', duration: '2h', type: 'deep-work', completed: true },
-  { id: 's2', title: 'Team Standup', startTime: '11:30', endTime: '12:00', duration: '30m', type: 'meeting', completed: false },
-  { id: 's3', title: 'Admin & Emails', startTime: '13:00', endTime: '14:00', duration: '1h', type: 'admin', completed: false },
-  { id: 's4', title: 'Creative Review', startTime: '15:00', endTime: '16:30', duration: '1.5h', type: 'meeting', completed: false },
-];
+const INITIAL_SCHEDULE: ScheduleItem[] = [];
 
-const INITIAL_HABITS: Habit[] = [
-  {
-    id: 'h1',
-    title: 'Hydration Ritual',
-    description: 'Drink 3L of water',
-    frequency: 'daily',
-    goal_count: 3000,
-    current_count: 1800,
-    streak: 24,
-    category: 'Health',
-    created_at: new Date().toISOString()
-  },
-  {
-    id: 'h2',
-    title: 'Morning Stillness',
-    description: '10 min meditation',
-    frequency: 'daily',
-    goal_count: 1,
-    current_count: 1,
-    streak: 8,
-    category: 'Mindset',
-    last_completed_at: new Date().toISOString(),
-    created_at: new Date().toISOString()
-  }
-];
+const INITIAL_HABITS: Habit[] = [];
+
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tasks, setTasks] = useState<Mission[]>(() => {
@@ -145,6 +88,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const saved = localStorage.getItem('lifepilot_habits');
     return saved ? JSON.parse(saved) : INITIAL_HABITS;
   });
+  const [habitHistory, setHabitsHistory] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem('lifepilot_habit_history');
+    return saved ? JSON.parse(saved) : {};
+  });
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -156,6 +103,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => { localStorage.setItem('lifepilot_streak', streak.toString()); }, [streak]);
   useEffect(() => { localStorage.setItem('lifepilot_schedule', JSON.stringify(schedule)); }, [schedule]);
   useEffect(() => { localStorage.setItem('lifepilot_habits', JSON.stringify(habits)); }, [habits]);
+  useEffect(() => { localStorage.setItem('lifepilot_habit_history', JSON.stringify(habitHistory)); }, [habitHistory]);
 
   // Derived state
   const completedTasks = tasks.filter(t => t.status === 'completed');
@@ -251,6 +199,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setHabits(prev => prev.map(h => {
       if (h.id === habitId) {
         const isCompletedToday = h.last_completed_at?.startsWith(today);
+        
+        setHabitsHistory(prevHistory => ({
+          ...prevHistory,
+          [today]: (prevHistory[today] || 0) + (isCompletedToday ? -1 : 1)
+        }));
+
         if (isCompletedToday) {
           // Un-complete
           return { ...h, last_completed_at: undefined, current_count: Math.max(0, h.current_count - 1) };
@@ -323,7 +277,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateHabit,
       toggleHabit,
       deleteHabit,
-      setError
+      setError,
+      habitHistory
     }}>
       {children}
     </AppContext.Provider>

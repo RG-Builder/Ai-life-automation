@@ -70,9 +70,16 @@ export const MinimalTheme: React.FC = () => {
              activeTab === 'tasks' ? 'Architecture' : 'Insights'}
           </h1>
         </div>
-        <button className="w-8 h-8 flex items-center justify-center text-gray-700 hover:text-gray-900 transition-colors">
-          <Settings size={22} fill="currentColor" className="text-gray-700" />
-        </button>
+        <div className="flex items-center gap-3">
+          {!useAuth().firebaseUser && (
+            <div className="bg-yellow-100 text-yellow-700 text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">
+              Demo Mode
+            </div>
+          )}
+          <button className="w-8 h-8 flex items-center justify-center text-gray-700 hover:text-gray-900 transition-colors">
+            <Settings size={22} fill="currentColor" className="text-gray-700" />
+          </button>
+        </div>
       </header>
 
       {/* Main Content Area */}
@@ -265,13 +272,30 @@ const TaskItem = ({ title, time, icon }: TaskItemProps) => (
 );
 
 const HabitsScreen = () => {
-  const { streak, habits, toggleHabit, deleteHabit } = useAppContext();
+  const { streak, habits, toggleHabit, deleteHabit, habitHistory } = useAppContext();
   const [isHabitModalOpen, setIsHabitModalOpen] = useState(false);
   const [habitToEdit, setHabitToEdit] = useState<Habit | null>(null);
   
   const completionRate = habits.length > 0 
     ? Math.round((habits.filter(h => h.last_completed_at?.startsWith(new Date().toISOString().split('T')[0])).length / habits.length) * 100)
     : 0;
+
+  const last7Days = Array.from({length: 7}, (_, i) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - i));
+    return date.toISOString().split('T')[0];
+  });
+
+  const completionData = last7Days.map(day => {
+    const totalHabits = habits.length;
+    const completed = habitHistory[day] || 0;
+    // For today, calculate based on current habits state to be perfectly accurate
+    if (day === new Date().toISOString().split('T')[0]) {
+      const completedToday = habits.filter(h => h.last_completed_at?.startsWith(day)).length;
+      return totalHabits > 0 ? Math.round((completedToday / totalHabits) * 100) : 0;
+    }
+    return totalHabits > 0 ? Math.round((completed / totalHabits) * 100) : 0;
+  });
 
   const handleEditHabit = (habit: Habit) => {
     setHabitToEdit(habit);
@@ -301,15 +325,14 @@ const HabitsScreen = () => {
         <h3 className="text-3xl font-bold text-gray-900 mb-8">{completionRate}% Completion</h3>
         
         <div className="flex justify-between items-end h-32 gap-2">
-          {/* Mock chart for now, but could be real historical data */}
-          {[40, 60, 50, 70, 90, 10, 10].map((h, i) => (
+          {completionData.map((h, i) => (
             <div 
               key={i} 
               className={cn(
                 "flex-1 rounded-t-xl transition-all duration-500",
-                i === 4 ? "bg-[#405C4A]" : "bg-[#E5F3E8]",
+                i === 6 ? "bg-[#405C4A]" : "bg-[#E5F3E8]",
               )} 
-              style={{ height: `${h}%` }}
+              style={{ height: `${Math.max(5, h)}%` }}
             ></div>
           ))}
         </div>
