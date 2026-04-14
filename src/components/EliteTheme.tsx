@@ -28,16 +28,20 @@ import { useAuth } from '../context/AuthContext';
 import { TaskModal } from './TaskModal';
 import { HabitModal } from './HabitModal';
 import { Mission, Habit } from '../types';
+import { THEME_CONFIG } from '../config/theme.config';
 
 // --- ELITE THEME COMPONENTS ---
 
 export const EliteTheme: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('core');
   const { firebaseUser } = useAuth();
-  const { error, setError } = useAppContext();
+  const { error, setError, activeTab, setActiveTab } = useAppContext();
+  const theme = THEME_CONFIG.ELITE;
 
   return (
-    <div className="min-h-screen bg-black text-[#00FF41] font-mono selection:bg-[#00FF41]/30 flex flex-col relative overflow-hidden">
+    <div 
+      className="min-h-screen font-mono selection:bg-[#00FF41]/30 flex flex-col relative overflow-hidden"
+      style={{ backgroundColor: theme.COLORS.BACKGROUND, color: theme.COLORS.TEXT_MAIN }}
+    >
       {/* Scanline Overlay */}
       <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] z-50 opacity-20"></div>
       
@@ -50,10 +54,10 @@ export const EliteTheme: React.FC = () => {
             exit={{ opacity: 0, y: -20 }}
             className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-sm"
           >
-            <div className="bg-black border border-[#00FF41]/50 rounded-none p-4 shadow-[0_0_20px_rgba(0,255,65,0.2)] flex items-center gap-3">
-              <AlertCircle className="text-[#00FF41] shrink-0" size={20} />
-              <p className="text-xs text-[#00FF41] flex-1 uppercase tracking-widest">{error}</p>
-              <button onClick={() => setError(null)} className="text-[#008F11] hover:text-[#00FF41]">
+            <div className="border rounded-none p-4 shadow-[0_0_20px_rgba(0,255,65,0.2)] flex items-center gap-3" style={{ backgroundColor: theme.COLORS.BACKGROUND, borderColor: `${theme.COLORS.PRIMARY}80` }}>
+              <AlertCircle className="shrink-0" size={20} style={{ color: theme.COLORS.DANGER }} />
+              <p className="text-xs flex-1 uppercase tracking-widest" style={{ color: theme.COLORS.TEXT_MAIN }}>{error}</p>
+              <button onClick={() => setError(null)} className="hover:text-[#00FF41]" style={{ color: theme.COLORS.TEXT_MUTED }}>
                 <X size={16} />
               </button>
             </div>
@@ -62,19 +66,22 @@ export const EliteTheme: React.FC = () => {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="px-6 pt-12 pb-4 flex justify-between items-start sticky top-0 bg-black/90 backdrop-blur-md z-40 border-b border-[#00FF41]/20">
+      <header 
+        className="px-6 pt-12 pb-4 flex justify-between items-start sticky top-0 backdrop-blur-md z-40 border-b"
+        style={{ backgroundColor: `${theme.COLORS.BACKGROUND}E6`, borderColor: `${theme.COLORS.PRIMARY}33` }}
+      >
         <div>
           <h1 className="font-bold text-lg tracking-widest flex items-center gap-2">
             <Terminal size={18} />
             {firebaseUser?.displayName?.toUpperCase().replace(' ', '_') || 'SYS.ADMIN'}
           </h1>
-          <div className="text-[10px] text-[#008F11] mt-1 flex items-center gap-2">
-            <span className="w-2 h-2 bg-[#00FF41] rounded-full animate-pulse"></span>
+          <div className="text-[10px] mt-1 flex items-center gap-2" style={{ color: theme.COLORS.TEXT_MUTED }}>
+            <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: theme.COLORS.PRIMARY }}></span>
             UPLINK_SECURE // ID: {firebaseUser?.uid.slice(0, 8) || '894.22.1'}
           </div>
         </div>
         <div className="text-right">
-          <div className="text-xs border border-[#00FF41]/30 px-2 py-1 bg-[#00FF41]/10">
+          <div className="text-xs border px-2 py-1" style={{ borderColor: `${theme.COLORS.PRIMARY}4D`, backgroundColor: `${theme.COLORS.PRIMARY}1A` }}>
             v4.2.0
           </div>
         </div>
@@ -83,35 +90,43 @@ export const EliteTheme: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto px-6 pb-32 relative z-30">
         <AnimatePresence mode="wait">
-          {activeTab === 'core' && <CoreScreen key="core" />}
-          {activeTab === 'logic' && <LogicScreen key="logic" />}
-          {activeTab === 'pilot' && <PilotScreen key="pilot" />}
+          {activeTab === 'focus' && <CoreScreen key="focus" />}
+          {activeTab === 'habits' && <LogicScreen key="habits" />}
+          {activeTab === 'tasks' && <PilotScreen key="tasks" />}
+          {activeTab === 'insights' && <SystemScreen key="insights" />}
         </AnimatePresence>
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-black border-t border-[#00FF41]/30 pb-safe pt-4 px-6 z-40">
+      <nav 
+        className="fixed bottom-0 left-0 right-0 border-t pb-safe pt-4 px-6 z-40"
+        style={{ backgroundColor: theme.COLORS.BACKGROUND, borderColor: `${theme.COLORS.PRIMARY}4D` }}
+      >
         <div className="flex justify-between items-center mb-6 max-w-sm mx-auto">
-          <NavItem id="core" label="[CORE]" active={activeTab === 'core'} onClick={() => setActiveTab('core')} />
-          <NavItem id="logic" label="[LOGIC]" active={activeTab === 'logic'} onClick={() => setActiveTab('logic')} />
-          <NavItem id="pilot" label="[PILOT]" active={activeTab === 'pilot'} onClick={() => setActiveTab('pilot')} />
+          <NavItem id="focus" label={theme.LABELS.NAV.focus} active={activeTab === 'focus'} onClick={() => setActiveTab('focus')} />
+          <NavItem id="habits" label={theme.LABELS.NAV.habits} active={activeTab === 'habits'} onClick={() => setActiveTab('habits')} />
+          <NavItem id="tasks" label={theme.LABELS.NAV.tasks} active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} />
+          <NavItem id="insights" label={theme.LABELS.NAV.insights} active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} />
         </div>
       </nav>
     </div>
   );
 };
 
-const NavItem = ({ id, label, active, onClick }: { id: string, label: string, active: boolean, onClick: () => void }) => (
-  <button 
-    onClick={onClick}
-    className={cn(
-      "text-xs font-bold tracking-widest transition-all duration-200 px-3 py-2 border border-transparent",
-      active ? "text-[#00FF41] border-[#00FF41]/50 bg-[#00FF41]/10 shadow-[0_0_10px_rgba(0,255,65,0.2)]" : "text-[#008F11] hover:text-[#00FF41] hover:border-[#00FF41]/20"
-    )}
-  >
-    {label}
-  </button>
-);
+const NavItem = ({ id, label, active, onClick }: { id: string, label: string, active: boolean, onClick: () => void }) => {
+  const theme = THEME_CONFIG.ELITE;
+  return (
+    <button 
+      onClick={onClick}
+      className={cn(
+        "text-xs font-bold tracking-widest transition-all duration-200 px-3 py-2 border border-transparent"
+      )}
+      style={active ? { color: theme.COLORS.PRIMARY, borderColor: `${theme.COLORS.PRIMARY}80`, backgroundColor: `${theme.COLORS.PRIMARY}1A`, boxShadow: `0 0 10px ${theme.COLORS.PRIMARY}33` } : { color: theme.COLORS.TEXT_MUTED }}
+    >
+      {label}
+    </button>
+  );
+};
 
 // --- SCREENS ---
 
@@ -504,3 +519,41 @@ const SequenceStep = ({ num, title, status, active }: any) => (
     </div>
   </div>
 );
+
+const SystemScreen = () => {
+  const theme = THEME_CONFIG.ELITE;
+  const { lifeScore, streak } = useAppContext();
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      className="space-y-6"
+    >
+      <div className="flex justify-between items-center border-b pb-2" style={{ borderColor: `${theme.COLORS.PRIMARY}4D` }}>
+        <h2 className="text-sm font-bold tracking-widest uppercase">System Diagnostics</h2>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="border p-4 flex flex-col items-center justify-center text-center" style={{ borderColor: `${theme.COLORS.PRIMARY}4D`, backgroundColor: `${theme.COLORS.PRIMARY}0A` }}>
+          <Activity size={24} style={{ color: theme.COLORS.PRIMARY }} className="mb-2" />
+          <div className="text-2xl font-bold">{lifeScore}</div>
+          <div className="text-[10px] uppercase tracking-widest mt-1" style={{ color: theme.COLORS.TEXT_MUTED }}>System Integrity</div>
+        </div>
+        <div className="border p-4 flex flex-col items-center justify-center text-center" style={{ borderColor: `${theme.COLORS.PRIMARY}4D`, backgroundColor: `${theme.COLORS.PRIMARY}0A` }}>
+          <Zap size={24} style={{ color: theme.COLORS.PRIMARY }} className="mb-2" />
+          <div className="text-2xl font-bold">{streak}</div>
+          <div className="text-[10px] uppercase tracking-widest mt-1" style={{ color: theme.COLORS.TEXT_MUTED }}>Uptime (Days)</div>
+        </div>
+      </div>
+
+      <div className="border p-4" style={{ borderColor: `${theme.COLORS.PRIMARY}4D` }}>
+        <h3 className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: theme.COLORS.PRIMARY }}>AI Analysis</h3>
+        <p className="text-sm leading-relaxed" style={{ color: theme.COLORS.TEXT_MUTED }}>
+          System operating within acceptable parameters. Efficiency is optimal. Continue executing core logic protocols to maintain integrity.
+        </p>
+      </div>
+    </motion.div>
+  );
+};

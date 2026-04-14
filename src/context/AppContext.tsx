@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Mission, ScheduleItem, Habit, MotivationState } from '../types';
 import { generateScheduleWithAI } from '../services/geminiService';
+import { APP_CONFIG } from '../config/app.config';
 
 interface AppContextType {
   tasks: Mission[];
@@ -47,6 +48,10 @@ interface AppContextType {
   setError: (error: string | null) => void;
   
   habitHistory: Record<string, number>;
+  
+  // Navigation
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -60,50 +65,51 @@ const INITIAL_HABITS: Habit[] = [];
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tasks, setTasks] = useState<Mission[]>(() => {
-    const saved = localStorage.getItem('lifepilot_tasks');
+    const saved = localStorage.getItem(APP_CONFIG.STORAGE_KEYS.TASKS);
     return saved ? JSON.parse(saved) : INITIAL_TASKS;
   });
   
   const [currentFocusTask, setCurrentFocusTask] = useState<Mission | null>(() => {
-    const saved = localStorage.getItem('lifepilot_focus');
+    const saved = localStorage.getItem(APP_CONFIG.STORAGE_KEYS.FOCUS);
     return saved ? JSON.parse(saved) : null;
   });
   
   const [lifeScore, setLifeScore] = useState<number>(() => {
-    const saved = localStorage.getItem('lifepilot_score');
-    return saved ? parseInt(saved, 10) : 84;
+    const saved = localStorage.getItem(APP_CONFIG.STORAGE_KEYS.SCORE);
+    return saved ? parseInt(saved, 10) : APP_CONFIG.DEFAULT_STATE.LIFE_SCORE;
   });
   
   const [streak, setStreak] = useState<number>(() => {
-    const saved = localStorage.getItem('lifepilot_streak');
-    return saved ? parseInt(saved, 10) : 14;
+    const saved = localStorage.getItem(APP_CONFIG.STORAGE_KEYS.STREAK);
+    return saved ? parseInt(saved, 10) : APP_CONFIG.DEFAULT_STATE.STREAK;
   });
   
   const [schedule, setSchedule] = useState<ScheduleItem[]>(() => {
-    const saved = localStorage.getItem('lifepilot_schedule');
+    const saved = localStorage.getItem(APP_CONFIG.STORAGE_KEYS.SCHEDULE);
     return saved ? JSON.parse(saved) : INITIAL_SCHEDULE;
   });
 
   const [habits, setHabits] = useState<Habit[]>(() => {
-    const saved = localStorage.getItem('lifepilot_habits');
+    const saved = localStorage.getItem(APP_CONFIG.STORAGE_KEYS.HABITS);
     return saved ? JSON.parse(saved) : INITIAL_HABITS;
   });
   const [habitHistory, setHabitsHistory] = useState<Record<string, number>>(() => {
-    const saved = localStorage.getItem('lifepilot_habit_history');
+    const saved = localStorage.getItem(APP_CONFIG.STORAGE_KEYS.HABIT_HISTORY);
     return saved ? JSON.parse(saved) : {};
   });
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('focus');
 
   // Save to localStorage on change
-  useEffect(() => { localStorage.setItem('lifepilot_tasks', JSON.stringify(tasks)); }, [tasks]);
-  useEffect(() => { localStorage.setItem('lifepilot_focus', JSON.stringify(currentFocusTask)); }, [currentFocusTask]);
-  useEffect(() => { localStorage.setItem('lifepilot_score', lifeScore.toString()); }, [lifeScore]);
-  useEffect(() => { localStorage.setItem('lifepilot_streak', streak.toString()); }, [streak]);
-  useEffect(() => { localStorage.setItem('lifepilot_schedule', JSON.stringify(schedule)); }, [schedule]);
-  useEffect(() => { localStorage.setItem('lifepilot_habits', JSON.stringify(habits)); }, [habits]);
-  useEffect(() => { localStorage.setItem('lifepilot_habit_history', JSON.stringify(habitHistory)); }, [habitHistory]);
+  useEffect(() => { localStorage.setItem(APP_CONFIG.STORAGE_KEYS.TASKS, JSON.stringify(tasks)); }, [tasks]);
+  useEffect(() => { localStorage.setItem(APP_CONFIG.STORAGE_KEYS.FOCUS, JSON.stringify(currentFocusTask)); }, [currentFocusTask]);
+  useEffect(() => { localStorage.setItem(APP_CONFIG.STORAGE_KEYS.SCORE, lifeScore.toString()); }, [lifeScore]);
+  useEffect(() => { localStorage.setItem(APP_CONFIG.STORAGE_KEYS.STREAK, streak.toString()); }, [streak]);
+  useEffect(() => { localStorage.setItem(APP_CONFIG.STORAGE_KEYS.SCHEDULE, JSON.stringify(schedule)); }, [schedule]);
+  useEffect(() => { localStorage.setItem(APP_CONFIG.STORAGE_KEYS.HABITS, JSON.stringify(habits)); }, [habits]);
+  useEffect(() => { localStorage.setItem(APP_CONFIG.STORAGE_KEYS.HABIT_HISTORY, JSON.stringify(habitHistory)); }, [habitHistory]);
 
   // Derived state
   const completedTasks = tasks.filter(t => t.status === 'completed');
@@ -132,15 +138,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addTask = (task: Partial<Mission>) => {
     const newTask: Mission = {
       id: Math.random().toString(36).substr(2, 9),
-      title: task.title || 'New Task',
+      title: task.title || APP_CONFIG.DEFAULTS.TASK_TITLE,
       status: 'pending',
       priority: task.priority || 'medium',
       deadline: task.deadline,
-      duration: task.duration || 30,
-      category: task.category || 'General',
+      duration: task.duration || APP_CONFIG.DEFAULTS.TASK_DURATION,
+      category: task.category || APP_CONFIG.DEFAULTS.TASK_CATEGORY,
       impact: task.impact || 'moderate',
-      urgency: task.urgency || 5,
-      importance: task.importance || 5,
+      urgency: task.urgency || APP_CONFIG.DEFAULTS.TASK_URGENCY,
+      importance: task.importance || APP_CONFIG.DEFAULTS.TASK_IMPORTANCE,
       is_habit: task.is_habit || false,
       streak: task.streak || 0,
       created_at: new Date().toISOString(),
@@ -153,7 +159,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTasks(prev => prev.map(t => 
       t.id === taskId ? { ...t, status: 'completed', completed_at: new Date().toISOString() } : t
     ));
-    setLifeScore(prev => prev + 5); // Arbitrary score increase
+    setLifeScore(prev => prev + APP_CONFIG.SCORING.TASK_COMPLETION_BONUS);
   };
 
   const deleteTask = (taskId: string) => {
@@ -177,13 +183,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addHabit = (habit: Partial<Habit>) => {
     const newHabit: Habit = {
       id: Math.random().toString(36).substr(2, 9),
-      title: habit.title || 'New Habit',
+      title: habit.title || APP_CONFIG.DEFAULTS.HABIT_TITLE,
       description: habit.description || '',
       frequency: habit.frequency || 'daily',
       goal_count: habit.goal_count || 1,
       current_count: 0,
       streak: 0,
-      category: habit.category || 'General',
+      category: habit.category || APP_CONFIG.DEFAULTS.HABIT_CATEGORY,
       created_at: new Date().toISOString(),
       ...habit
     };
@@ -278,7 +284,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       toggleHabit,
       deleteHabit,
       setError,
-      habitHistory
+      habitHistory,
+      activeTab,
+      setActiveTab
     }}>
       {children}
     </AppContext.Provider>

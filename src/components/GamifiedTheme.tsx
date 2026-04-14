@@ -29,16 +29,20 @@ import { cn } from '../lib/utils';
 import { TaskModal } from './TaskModal';
 import { HabitModal } from './HabitModal';
 import { Mission, Habit } from '../types';
+import { THEME_CONFIG } from '../config/theme.config';
 
 // --- GAMIFIED THEME COMPONENTS ---
 
 export const GamifiedTheme: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('missions');
   const { firebaseUser } = useAuth();
-  const { error, setError } = useAppContext();
+  const { error, setError, activeTab, setActiveTab } = useAppContext();
+  const theme = THEME_CONFIG.GAMIFIED;
 
   return (
-    <div className="min-h-screen bg-[#F4F9E7] text-[#2C5A0D] font-sans selection:bg-[#73F02D]/30 flex flex-col">
+    <div 
+      className="min-h-screen font-sans selection:bg-[#73F02D]/30 flex flex-col"
+      style={{ backgroundColor: theme.COLORS.BACKGROUND, color: theme.COLORS.TEXT_MAIN }}
+    >
       {/* Error Toast */}
       <AnimatePresence>
         {error && (
@@ -60,19 +64,22 @@ export const GamifiedTheme: React.FC = () => {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="px-6 pt-12 pb-4 flex justify-between items-center sticky top-0 bg-[#F4F9E7]/80 backdrop-blur-md z-50">
+      <header 
+        className="px-6 pt-12 pb-4 flex justify-between items-center sticky top-0 backdrop-blur-md z-50"
+        style={{ backgroundColor: `${theme.COLORS.BACKGROUND}CC` }}
+      >
         <div className="flex items-center gap-3">
           <div className="relative">
-            <img src={firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="Profile" className="w-10 h-10 rounded-full border-2 border-[#2C5A0D] object-cover" />
-            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#73F02D] rounded-full border-2 border-[#F4F9E7]"></div>
+            <img src={firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="Profile" className="w-10 h-10 rounded-full border-2 object-cover" style={{ borderColor: theme.COLORS.PRIMARY }} />
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2" style={{ backgroundColor: theme.COLORS.PRIMARY_LIGHT, borderColor: theme.COLORS.BACKGROUND }}></div>
           </div>
           <div>
             <h1 className="font-black text-lg leading-none">LifePilot AI</h1>
-            <p className="text-[10px] font-bold text-[#5C7A46] uppercase tracking-wider">Level 14 Explorer</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: theme.COLORS.TEXT_MUTED }}>Level 14 Explorer</p>
           </div>
         </div>
-        <button className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-[#2C5A0D] relative">
-          <div className="absolute top-2 right-2 w-2 h-2 bg-[#FF5A36] rounded-full border border-white"></div>
+        <button className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center relative" style={{ color: theme.COLORS.PRIMARY }}>
+          <div className="absolute top-2 right-2 w-2 h-2 rounded-full border border-white" style={{ backgroundColor: theme.COLORS.ACCENT }}></div>
           <BellIcon />
         </button>
       </header>
@@ -80,20 +87,23 @@ export const GamifiedTheme: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto px-6 pb-32">
         <AnimatePresence mode="wait">
-          {activeTab === 'missions' && <MissionsScreen key="missions" />}
-          {activeTab === 'schedule' && <ScheduleScreen key="schedule" />}
-          {activeTab === 'chat' && <ChatScreen key="chat" />}
-          {activeTab === 'streaks' && <StreaksScreen key="streaks" />}
+          {activeTab === 'tasks' && <MissionsScreen key="tasks" />}
+          {activeTab === 'focus' && <ScheduleScreen key="focus" />}
+          {activeTab === 'insights' && <ChatScreen key="insights" />}
+          {activeTab === 'habits' && <StreaksScreen key="habits" />}
         </AnimatePresence>
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#F4F9E7] pb-safe pt-2 px-6 z-50">
-        <div className="flex justify-between items-center bg-white rounded-full px-2 py-2 shadow-lg shadow-[#2C5A0D]/5 border border-[#2C5A0D]/5 mb-6">
-          <NavItem id="missions" icon={<LayoutGrid size={20} />} label="MISSIONS" active={activeTab === 'missions'} onClick={() => setActiveTab('missions')} />
-          <NavItem id="schedule" icon={<Calendar size={20} />} label="SCHEDULE" active={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')} />
-          <NavItem id="chat" icon={<MessageSquare size={20} />} label="CHAT" active={activeTab === 'chat'} onClick={() => setActiveTab('chat')} />
-          <NavItem id="streaks" icon={<Flame size={20} />} label="STREAKS" active={activeTab === 'streaks'} onClick={() => setActiveTab('streaks')} />
+      <nav 
+        className="fixed bottom-0 left-0 right-0 pb-safe pt-2 px-6 z-50"
+        style={{ backgroundColor: theme.COLORS.BACKGROUND }}
+      >
+        <div className="flex justify-between items-center bg-white rounded-full px-2 py-2 shadow-lg mb-6" style={{ boxShadow: `0 10px 15px -3px ${theme.COLORS.PRIMARY}0D`, borderColor: `${theme.COLORS.PRIMARY}0D` }}>
+          <NavItem id="focus" icon={<Calendar size={20} />} label={theme.LABELS.NAV.focus} active={activeTab === 'focus'} onClick={() => setActiveTab('focus')} />
+          <NavItem id="habits" icon={<Flame size={20} />} label={theme.LABELS.NAV.habits} active={activeTab === 'habits'} onClick={() => setActiveTab('habits')} />
+          <NavItem id="tasks" icon={<LayoutGrid size={20} />} label={theme.LABELS.NAV.tasks} active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} />
+          <NavItem id="insights" icon={<MessageSquare size={20} />} label={theme.LABELS.NAV.insights} active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} />
         </div>
       </nav>
     </div>
@@ -107,18 +117,21 @@ const BellIcon = () => (
   </svg>
 );
 
-const NavItem = ({ id, icon, label, active, onClick }: { id: string, icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) => (
-  <button 
-    onClick={onClick}
-    className={cn(
-      "flex flex-col items-center justify-center w-16 h-14 rounded-full transition-all duration-300",
-      active ? "bg-[#2C5A0D] text-white" : "text-[#8A9E7B] hover:bg-[#F4F9E7]"
-    )}
-  >
-    <div className={cn("mb-1 transition-transform duration-300", active && "scale-110")}>{icon}</div>
-    <span className="text-[9px] font-black tracking-wider">{label}</span>
-  </button>
-);
+const NavItem = ({ id, icon, label, active, onClick }: { id: string, icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) => {
+  const theme = THEME_CONFIG.GAMIFIED;
+  return (
+    <button 
+      onClick={onClick}
+      className={cn(
+        "flex flex-col items-center justify-center w-16 h-14 rounded-full transition-all duration-300"
+      )}
+      style={active ? { backgroundColor: theme.COLORS.PRIMARY, color: 'white' } : { color: theme.COLORS.TEXT_MUTED_LIGHT }}
+    >
+      <div className={cn("mb-1 transition-transform duration-300", active && "scale-110")}>{icon}</div>
+      <span className="text-[9px] font-black tracking-wider">{label}</span>
+    </button>
+  );
+};
 
 // --- SCREENS ---
 

@@ -31,15 +31,19 @@ import { useAuth } from '../context/AuthContext';
 import { TaskModal } from './TaskModal';
 import { HabitModal } from './HabitModal';
 import { Mission, Habit } from '../types';
+import { THEME_CONFIG } from '../config/theme.config';
 
 // --- MINIMAL THEME COMPONENTS ---
 
 export const MinimalTheme: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('focus');
-  const { error, setError } = useAppContext();
+  const { error, setError, activeTab, setActiveTab } = useAppContext();
+  const theme = THEME_CONFIG.MINIMAL;
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] text-gray-900 font-sans selection:bg-gray-200 flex flex-col">
+    <div 
+      className="min-h-screen font-sans selection:bg-gray-200 flex flex-col"
+      style={{ backgroundColor: theme.COLORS.BACKGROUND, color: theme.COLORS.TEXT_MAIN }}
+    >
       {/* Error Toast */}
       <AnimatePresence>
         {error && (
@@ -50,7 +54,7 @@ export const MinimalTheme: React.FC = () => {
             className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-sm"
           >
             <div className="bg-white border border-danger/20 rounded-2xl p-4 shadow-xl flex items-center gap-3">
-              <AlertCircle className="text-danger shrink-0" size={20} />
+              <AlertCircle className="shrink-0" size={20} style={{ color: theme.COLORS.DANGER }} />
               <p className="text-sm text-gray-700 flex-1">{error}</p>
               <button onClick={() => setError(null)} className="text-gray-400 hover:text-gray-600">
                 <X size={16} />
@@ -61,13 +65,16 @@ export const MinimalTheme: React.FC = () => {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="px-6 pt-12 pb-6 flex justify-between items-center sticky top-0 bg-[#F9FAFB]/80 backdrop-blur-md z-50">
+      <header 
+        className="px-6 pt-12 pb-6 flex justify-between items-center sticky top-0 backdrop-blur-md z-50"
+        style={{ backgroundColor: `${theme.COLORS.BACKGROUND}CC` }} // CC is 80% opacity
+      >
         <div className="flex items-center gap-3">
           <img src={useAuth().firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
           <h1 className="font-bold text-lg leading-tight tracking-tight">
-            {activeTab === 'focus' ? 'Focus' : 
-             activeTab === 'habits' ? 'Rituals' :
-             activeTab === 'tasks' ? 'Architecture' : 'Insights'}
+            {activeTab === 'focus' ? theme.LABELS.TABS.focus : 
+             activeTab === 'habits' ? theme.LABELS.TABS.habits :
+             activeTab === 'tasks' ? theme.LABELS.TABS.tasks : theme.LABELS.TABS.insights}
           </h1>
         </div>
         <div className="flex items-center gap-3">
@@ -93,30 +100,37 @@ export const MinimalTheme: React.FC = () => {
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#F9FAFB] border-t border-gray-100 pb-safe pt-3 px-6 z-50">
+      <nav 
+        className="fixed bottom-0 left-0 right-0 border-t border-gray-100 pb-safe pt-3 px-6 z-50"
+        style={{ backgroundColor: theme.COLORS.BACKGROUND }}
+      >
         <div className="flex justify-between items-center mb-4 max-w-sm mx-auto">
-          <NavItem id="focus" icon={<Target size={22} />} label="FOCUS" active={activeTab === 'focus'} onClick={() => setActiveTab('focus')} />
-          <NavItem id="habits" icon={<RefreshCw size={22} />} label="HABITS" active={activeTab === 'habits'} onClick={() => setActiveTab('habits')} />
-          <NavItem id="tasks" icon={<ClipboardList size={22} />} label="TASKS" active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} />
-          <NavItem id="insights" icon={<BarChart2 size={22} />} label="INSIGHTS" active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} />
+          <NavItem id="focus" icon={<Target size={22} />} label={theme.LABELS.NAV.focus} active={activeTab === 'focus'} onClick={() => setActiveTab('focus')} />
+          <NavItem id="habits" icon={<RefreshCw size={22} />} label={theme.LABELS.NAV.habits} active={activeTab === 'habits'} onClick={() => setActiveTab('habits')} />
+          <NavItem id="tasks" icon={<ClipboardList size={22} />} label={theme.LABELS.NAV.tasks} active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} />
+          <NavItem id="insights" icon={<BarChart2 size={22} />} label={theme.LABELS.NAV.insights} active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} />
         </div>
       </nav>
     </div>
   );
 };
 
-const NavItem = ({ id, icon, label, active, onClick }: { id: string, icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) => (
-  <button 
-    onClick={onClick}
-    className={cn(
-      "flex flex-col items-center justify-center w-16 gap-1.5 transition-colors duration-200",
-      active ? "text-[#405C4A]" : "text-gray-400 hover:text-gray-600"
-    )}
-  >
-    {icon}
-    <span className="text-[9px] font-bold tracking-wider">{label}</span>
-  </button>
-);
+const NavItem = ({ id, icon, label, active, onClick }: { id: string, icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) => {
+  const theme = THEME_CONFIG.MINIMAL;
+  return (
+    <button 
+      onClick={onClick}
+      className={cn(
+        "flex flex-col items-center justify-center w-16 gap-1.5 transition-colors duration-200",
+        !active && "text-gray-400 hover:text-gray-600"
+      )}
+      style={active ? { color: theme.COLORS.PRIMARY } : {}}
+    >
+      {icon}
+      <span className="text-[9px] font-bold tracking-wider">{label}</span>
+    </button>
+  );
+};
 
 // --- SCREENS ---
 
