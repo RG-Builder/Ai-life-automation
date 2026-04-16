@@ -49,6 +49,14 @@ export interface ThemeTokens {
     activeFocus: string;
     score: string;
     schedule: string;
+    navigation: {
+      home: string;
+      tasks: string;
+      habits: string;
+      schedule: string;
+      analytics: string;
+      settings: string;
+    };
   };
   motion: {
     transition: any;
@@ -109,6 +117,14 @@ export const themes: Record<ThemeType, ThemeTokens> = {
       activeFocus: 'Active Missions',
       score: 'Efficiency Score',
       schedule: 'Neural Timeline',
+      navigation: {
+        home: 'Pilot',
+        tasks: 'Matrix',
+        habits: 'Logic',
+        schedule: 'Timeline',
+        analytics: 'Sync',
+        settings: 'System',
+      }
     },
     motion: {
       transition: { type: "spring", stiffness: 300, damping: 30 },
@@ -175,6 +191,14 @@ export const themes: Record<ThemeType, ThemeTokens> = {
       activeFocus: 'Up Next',
       score: 'Weekly Goal',
       schedule: 'Schedule',
+      navigation: {
+        home: 'Home',
+        tasks: 'Quests',
+        habits: 'Streaks',
+        schedule: 'Day',
+        analytics: 'Stats',
+        settings: 'Style',
+      }
     },
     motion: {
       transition: { type: "spring", stiffness: 400, damping: 15 },
@@ -241,6 +265,14 @@ export const themes: Record<ThemeType, ThemeTokens> = {
       activeFocus: 'Focus Items',
       score: 'Daily Score',
       schedule: 'Timeline',
+      navigation: {
+        home: 'Home',
+        tasks: 'Focus',
+        habits: 'Habits',
+        schedule: 'Time',
+        analytics: 'Data',
+        settings: 'Style',
+      }
     },
     motion: {
       transition: { duration: 0.2, ease: "linear" },
@@ -307,6 +339,14 @@ export const themes: Record<ThemeType, ThemeTokens> = {
       activeFocus: 'Active Missions',
       score: 'Efficiency Score',
       schedule: 'Neural Timeline',
+      navigation: {
+        home: 'Dashboard',
+        tasks: 'Missions',
+        habits: 'Habits',
+        schedule: 'Timeline',
+        analytics: 'Analytics',
+        settings: 'Settings',
+      }
     },
     motion: {
       transition: { type: "spring", stiffness: 300, damping: 20 },

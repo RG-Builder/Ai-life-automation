@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../theme';
 import { 
   LayoutGrid, 
   Calendar, 
@@ -31,17 +32,19 @@ import { HabitModal } from './HabitModal';
 import { Mission, Habit } from '../types';
 import { THEME_CONFIG } from '../config/theme.config';
 
+import { Dashboard } from './views/Dashboard';
+
 // --- GAMIFIED THEME COMPONENTS ---
 
 export const GamifiedTheme: React.FC = () => {
   const { firebaseUser } = useAuth();
   const { error, setError, activeTab, setActiveTab } = useAppContext();
-  const theme = THEME_CONFIG.GAMIFIED;
+  const { theme } = useTheme();
 
   return (
     <div 
       className="min-h-screen font-sans selection:bg-[#73F02D]/30 flex flex-col"
-      style={{ backgroundColor: theme.COLORS.BACKGROUND, color: theme.COLORS.TEXT_MAIN }}
+      style={{ backgroundColor: theme.colors.background, color: theme.colors.text_primary }}
     >
       {/* Error Toast */}
       <AnimatePresence>
@@ -66,20 +69,20 @@ export const GamifiedTheme: React.FC = () => {
       {/* Header */}
       <header 
         className="px-6 pt-12 pb-4 flex justify-between items-center sticky top-0 backdrop-blur-md z-50"
-        style={{ backgroundColor: `${theme.COLORS.BACKGROUND}CC` }}
+        style={{ backgroundColor: `${theme.colors.background}CC` }}
       >
         <div className="flex items-center gap-3">
           <div className="relative">
-            <img src={firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="Profile" className="w-10 h-10 rounded-full border-2 object-cover" style={{ borderColor: theme.COLORS.PRIMARY }} />
-            <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2" style={{ backgroundColor: theme.COLORS.PRIMARY_LIGHT, borderColor: theme.COLORS.BACKGROUND }}></div>
+            <img src={firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="Profile" className="w-10 h-10 rounded-full border-2 object-cover" style={{ borderColor: theme.colors.primary }} />
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2" style={{ backgroundColor: theme.colors.accent, borderColor: theme.colors.background }}></div>
           </div>
           <div>
             <h1 className="font-black text-lg leading-none">LifePilot AI</h1>
-            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: theme.COLORS.TEXT_MUTED }}>Level 14 Explorer</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: theme.colors.text_secondary }}>Level 14 Explorer</p>
           </div>
         </div>
-        <button className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center relative" style={{ color: theme.COLORS.PRIMARY }}>
-          <div className="absolute top-2 right-2 w-2 h-2 rounded-full border border-white" style={{ backgroundColor: theme.COLORS.ACCENT }}></div>
+        <button className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center relative" style={{ color: theme.colors.primary }}>
+          <div className="absolute top-2 right-2 w-2 h-2 rounded-full border border-white" style={{ backgroundColor: theme.colors.accent }}></div>
           <BellIcon />
         </button>
       </header>
@@ -87,23 +90,25 @@ export const GamifiedTheme: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto px-6 pb-32">
         <AnimatePresence mode="wait">
+          {activeTab === 'home' && <Dashboard key="home" />}
           {activeTab === 'tasks' && <MissionsScreen key="tasks" />}
-          {activeTab === 'focus' && <ScheduleScreen key="focus" />}
-          {activeTab === 'insights' && <ChatScreen key="insights" />}
           {activeTab === 'habits' && <StreaksScreen key="habits" />}
+          {activeTab === 'schedule' && <ScheduleScreen key="schedule" />}
+          {activeTab === 'analytics' && <ChatScreen key="analytics" />}
         </AnimatePresence>
       </main>
 
       {/* Bottom Navigation */}
       <nav 
         className="fixed bottom-0 left-0 right-0 pb-safe pt-2 px-6 z-50"
-        style={{ backgroundColor: theme.COLORS.BACKGROUND }}
+        style={{ backgroundColor: theme.colors.background }}
       >
-        <div className="flex justify-between items-center bg-white rounded-full px-2 py-2 shadow-lg mb-6" style={{ boxShadow: `0 10px 15px -3px ${theme.COLORS.PRIMARY}0D`, borderColor: `${theme.COLORS.PRIMARY}0D` }}>
-          <NavItem id="focus" icon={<Calendar size={20} />} label={theme.LABELS.NAV.focus} active={activeTab === 'focus'} onClick={() => setActiveTab('focus')} />
-          <NavItem id="habits" icon={<Flame size={20} />} label={theme.LABELS.NAV.habits} active={activeTab === 'habits'} onClick={() => setActiveTab('habits')} />
-          <NavItem id="tasks" icon={<LayoutGrid size={20} />} label={theme.LABELS.NAV.tasks} active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} />
-          <NavItem id="insights" icon={<MessageSquare size={20} />} label={theme.LABELS.NAV.insights} active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} />
+        <div className="flex justify-between items-center bg-white rounded-full px-2 py-2 shadow-lg mb-6 overflow-x-auto no-scrollbar gap-1" style={{ boxShadow: `0 10px 15px -3px ${theme.colors.primary}0D`, borderColor: `${theme.colors.primary}0D` }}>
+          <NavItem id="home" icon={<LayoutGrid size={20} />} label={theme.wording.navigation.home} active={activeTab === 'home'} onClick={() => setActiveTab('home')} />
+          <NavItem id="tasks" icon={<Award size={20} />} label={theme.wording.navigation.tasks} active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} />
+          <NavItem id="habits" icon={<Flame size={20} />} label={theme.wording.navigation.habits} active={activeTab === 'habits'} onClick={() => setActiveTab('habits')} />
+          <NavItem id="schedule" icon={<Calendar size={20} />} label={theme.wording.navigation.schedule} active={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')} />
+          <NavItem id="analytics" icon={<MessageSquare size={20} />} label={theme.wording.navigation.analytics} active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
         </div>
       </nav>
     </div>
@@ -118,14 +123,14 @@ const BellIcon = () => (
 );
 
 const NavItem = ({ id, icon, label, active, onClick }: { id: string, icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) => {
-  const theme = THEME_CONFIG.GAMIFIED;
+  const { theme } = useTheme();
   return (
     <button 
       onClick={onClick}
       className={cn(
         "flex flex-col items-center justify-center w-16 h-14 rounded-full transition-all duration-300"
       )}
-      style={active ? { backgroundColor: theme.COLORS.PRIMARY, color: 'white' } : { color: theme.COLORS.TEXT_MUTED_LIGHT }}
+      style={active ? { backgroundColor: theme.colors.primary, color: 'white' } : { color: theme.colors.text_secondary }}
     >
       <div className={cn("mb-1 transition-transform duration-300", active && "scale-110")}>{icon}</div>
       <span className="text-[9px] font-black tracking-wider">{label}</span>

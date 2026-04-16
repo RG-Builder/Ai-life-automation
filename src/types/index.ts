@@ -39,6 +39,11 @@ export interface User {
   plan: 'free' | 'premium';
   subscription_plan?: 'free' | 'premium' | 'trial'; // Added for compatibility
   role?: string;
+  onboardingComplete?: boolean;
+  wakeTime?: string;
+  directive?: string;
+  lifeScore?: number;
+  streak?: number;
 }
 
 export interface LifeState {

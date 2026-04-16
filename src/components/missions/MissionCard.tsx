@@ -13,16 +13,12 @@ interface MissionCardProps {
 export const MissionCard: React.FC<MissionCardProps> = ({ mission, theme, handleAction }) => {
   const impactColor = mission.impact === 'critical' ? 'text-danger' : mission.impact === 'high' ? 'text-primary' : 'text-secondary';
   
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteState, setDeleteState] = useState<'idle' | 'confirming' | 'deleted'>('idle');
 
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleConfirmDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirmDelete) {
-      handleAction('DELETE_TASK', { id: mission.id });
-    } else {
-      setConfirmDelete(true);
-      setTimeout(() => setConfirmDelete(false), 3000);
-    }
+    setDeleteState('deleted');
+    handleAction('DELETE_TASK', { id: mission.id });
   };
 
   return (
@@ -48,15 +44,33 @@ export const MissionCard: React.FC<MissionCardProps> = ({ mission, theme, handle
           </h3>
         </div>
         <div className="flex items-center gap-2">
-          <motion.button 
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={handleDelete}
-            className={`size-8 rounded-lg flex items-center justify-center transition-all ${confirmDelete ? 'bg-danger text-white' : 'text-text_secondary hover:text-danger hover:bg-danger/10 opacity-40 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100'}`}
-            title={confirmDelete ? "Click again to confirm" : "Delete Mission"}
-          >
-            {confirmDelete ? <X size={16} /> : <Trash2 size={16} />}
-          </motion.button>
+          {deleteState === 'confirming' ? (
+            <div className="flex items-center gap-2 bg-danger/10 px-3 py-1.5 rounded-lg border border-danger/20">
+              <span className="text-xs text-danger font-bold uppercase tracking-widest">Delete?</span>
+              <button 
+                onClick={handleConfirmDelete}
+                className="text-xs font-bold text-white bg-danger px-2 py-1 rounded hover:bg-danger/80 transition-colors"
+              >
+                Yes
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setDeleteState('idle'); }}
+                className="text-xs font-bold text-text_secondary hover:text-text_primary transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <motion.button 
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={(e) => { e.stopPropagation(); setDeleteState('confirming'); }}
+              className="size-8 rounded-lg flex items-center justify-center transition-all text-text_secondary hover:text-danger hover:bg-danger/10 opacity-40 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+              title="Delete Mission"
+            >
+              <Trash2 size={16} />
+            </motion.button>
+          )}
           <div className={`size-10 rounded-xl flex items-center justify-center text-text_secondary bg-surface border border-border`}>
             {mission.category === 'health' ? <Heart size={20} /> : mission.category === 'work' ? <Briefcase size={20} /> : <Target size={20} />}
           </div>

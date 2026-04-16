@@ -2,6 +2,20 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Mission, ScheduleItem, Habit, MotivationState } from '../types';
 import { generateScheduleWithAI } from '../services/geminiService';
 import { APP_CONFIG } from '../config/app.config';
+import { useAuth } from './AuthContext';
+import { 
+  collection, 
+  onSnapshot, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  query, 
+  orderBy,
+  setDoc,
+  serverTimestamp
+} from 'firebase/firestore';
+import { db } from '../firebase';
 
 interface AppContextType {
   tasks: Mission[];
@@ -47,6 +61,9 @@ interface AppContextType {
   // UI Actions
   setError: (error: string | null) => void;
   
+  undoAction: { message: string; undo: () => void } | null;
+  setUndoAction: (action: { message: string; undo: () => void } | null) => void;
+  
   habitHistory: Record<string, number>;
   
   // Navigation
@@ -64,51 +81,69 @@ const INITIAL_HABITS: Habit[] = [];
 
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [tasks, setTasks] = useState<Mission[]>(() => {
-    const saved = localStorage.getItem(APP_CONFIG.STORAGE_KEYS.TASKS);
-    return saved ? JSON.parse(saved) : INITIAL_TASKS;
-  });
-  
-  const [currentFocusTask, setCurrentFocusTask] = useState<Mission | null>(() => {
-    const saved = localStorage.getItem(APP_CONFIG.STORAGE_KEYS.FOCUS);
-    return saved ? JSON.parse(saved) : null;
-  });
-  
-  const [lifeScore, setLifeScore] = useState<number>(() => {
-    const saved = localStorage.getItem(APP_CONFIG.STORAGE_KEYS.SCORE);
-    return saved ? parseInt(saved, 10) : APP_CONFIG.DEFAULT_STATE.LIFE_SCORE;
-  });
-  
-  const [streak, setStreak] = useState<number>(() => {
-    const saved = localStorage.getItem(APP_CONFIG.STORAGE_KEYS.STREAK);
-    return saved ? parseInt(saved, 10) : APP_CONFIG.DEFAULT_STATE.STREAK;
-  });
-  
-  const [schedule, setSchedule] = useState<ScheduleItem[]>(() => {
-    const saved = localStorage.getItem(APP_CONFIG.STORAGE_KEYS.SCHEDULE);
-    return saved ? JSON.parse(saved) : INITIAL_SCHEDULE;
-  });
-
-  const [habits, setHabits] = useState<Habit[]>(() => {
-    const saved = localStorage.getItem(APP_CONFIG.STORAGE_KEYS.HABITS);
-    return saved ? JSON.parse(saved) : INITIAL_HABITS;
-  });
-  const [habitHistory, setHabitsHistory] = useState<Record<string, number>>(() => {
-    const saved = localStorage.getItem(APP_CONFIG.STORAGE_KEYS.HABIT_HISTORY);
-    return saved ? JSON.parse(saved) : {};
-  });
+  const { user, updateUserProfile } = useAuth();
+  const [tasks, setTasks] = useState<Mission[]>([]);
+  const [currentFocusTask, setCurrentFocusTask] = useState<Mission | null>(null);
+  const [lifeScore, setLifeScore] = useState<number>(APP_CONFIG.DEFAULT_STATE.LIFE_SCORE);
+  const [streak, setStreak] = useState<number>(APP_CONFIG.DEFAULT_STATE.STREAK);
+  const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
+  const [habits, setHabits] = useState<Habit[]>([]);
+  const [habitHistory, setHabitsHistory] = useState<Record<string, number>>({});
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [undoAction, setUndoAction] = useState<{ message: string; undo: () => void } | null>(null);
   const [activeTab, setActiveTab] = useState<string>('focus');
 
-  // Save to localStorage on change
-  useEffect(() => { localStorage.setItem(APP_CONFIG.STORAGE_KEYS.TASKS, JSON.stringify(tasks)); }, [tasks]);
+  // Sync with Firestore when user is logged in
+  useEffect(() => {
+    if (!user) {
+      setTasks([]);
+      setHabits([]);
+      setLifeScore(APP_CONFIG.DEFAULT_STATE.LIFE_SCORE);
+      setStreak(APP_CONFIG.DEFAULT_STATE.STREAK);
+      return;
+    }
+
+    // Sync lifeScore and streak from user profile
+    if (user.lifeScore !== undefined) setLifeScore(user.lifeScore);
+    if (user.streak !== undefined) setStreak(user.streak);
+
+    // Listen for Tasks
+    const tasksQuery = query(
+      collection(db, 'users', user.id.toString(), 'tasks'),
+      orderBy('created_at', 'desc')
+    );
+    const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
+      const taskList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Mission[];
+      setTasks(taskList);
+    });
+
+    // Listen for Habits
+    const habitsQuery = query(
+      collection(db, 'users', user.id.toString(), 'habits'),
+      orderBy('created_at', 'desc')
+    );
+    const unsubscribeHabits = onSnapshot(habitsQuery, (snapshot) => {
+      const habitList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Habit[];
+      setHabits(habitList);
+    });
+
+    return () => {
+      unsubscribeTasks();
+      unsubscribeHabits();
+    };
+  }, [user]);
+
+  // Save UI-only state to localStorage
   useEffect(() => { localStorage.setItem(APP_CONFIG.STORAGE_KEYS.FOCUS, JSON.stringify(currentFocusTask)); }, [currentFocusTask]);
-  useEffect(() => { localStorage.setItem(APP_CONFIG.STORAGE_KEYS.SCORE, lifeScore.toString()); }, [lifeScore]);
-  useEffect(() => { localStorage.setItem(APP_CONFIG.STORAGE_KEYS.STREAK, streak.toString()); }, [streak]);
   useEffect(() => { localStorage.setItem(APP_CONFIG.STORAGE_KEYS.SCHEDULE, JSON.stringify(schedule)); }, [schedule]);
-  useEffect(() => { localStorage.setItem(APP_CONFIG.STORAGE_KEYS.HABITS, JSON.stringify(habits)); }, [habits]);
   useEffect(() => { localStorage.setItem(APP_CONFIG.STORAGE_KEYS.HABIT_HISTORY, JSON.stringify(habitHistory)); }, [habitHistory]);
 
   // Derived state
@@ -135,13 +170,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (changed) setTasks(updatedTasks);
   }, [tasks]);
 
-  const addTask = (task: Partial<Mission>) => {
-    const newTask: Mission = {
-      id: Math.random().toString(36).substr(2, 9),
+  const addTask = async (task: Partial<Mission>) => {
+    if (!user) return;
+    const newTask = {
       title: task.title || APP_CONFIG.DEFAULTS.TASK_TITLE,
       status: 'pending',
       priority: task.priority || 'medium',
-      deadline: task.deadline,
+      deadline: task.deadline || null,
       duration: task.duration || APP_CONFIG.DEFAULTS.TASK_DURATION,
       category: task.category || APP_CONFIG.DEFAULTS.TASK_CATEGORY,
       impact: task.impact || 'moderate',
@@ -149,28 +184,74 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       importance: task.importance || APP_CONFIG.DEFAULTS.TASK_IMPORTANCE,
       is_habit: task.is_habit || false,
       streak: task.streak || 0,
-      created_at: new Date().toISOString(),
-      ...task
+      created_at: new Date().toISOString()
     };
-    setTasks(prev => [...prev, newTask]);
-  };
-
-  const completeTask = (taskId: string) => {
-    setTasks(prev => prev.map(t => 
-      t.id === taskId ? { ...t, status: 'completed', completed_at: new Date().toISOString() } : t
-    ));
-    setLifeScore(prev => prev + APP_CONFIG.SCORING.TASK_COMPLETION_BONUS);
-  };
-
-  const deleteTask = (taskId: string) => {
-    setTasks(prev => prev.filter(t => t.id !== taskId));
-    if (currentFocusTask?.id === taskId) {
-      setCurrentFocusTask(null);
+    
+    try {
+      await addDoc(collection(db, 'users', user.id.toString(), 'tasks'), newTask);
+    } catch (error) {
+      console.error("Error adding task:", error);
+      setError("Failed to add task to database.");
     }
   };
 
-  const updateTask = (taskId: string, updates: Partial<Mission>) => {
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
+  const completeTask = async (taskId: string) => {
+    if (!user) return;
+    const task = tasks.find(t => t.id === taskId);
+    const scheduleItem = schedule.find(s => s.id === taskId);
+    const targetTask = task || tasks.find(t => t.title === scheduleItem?.title);
+
+    if (!targetTask) {
+      if (scheduleItem) {
+        setSchedule(prev => prev.map(s => s.id === taskId ? { ...s, status: 'completed' as const, completed: true } : s));
+      }
+      return;
+    }
+
+    try {
+      const taskDoc = doc(db, 'users', user.id.toString(), 'tasks', targetTask.id);
+      await updateDoc(taskDoc, {
+        status: 'completed',
+        completed_at: new Date().toISOString()
+      });
+
+      // Update score in profile
+      const newScore = lifeScore + APP_CONFIG.SCORING.TASK_COMPLETION_BONUS;
+      await updateUserProfile({ lifeScore: newScore });
+
+      setUndoAction({
+        message: `"${targetTask.title}" completed!`,
+        undo: async () => {
+          await updateDoc(taskDoc, { status: 'pending', completed_at: null });
+          await updateUserProfile({ lifeScore: lifeScore });
+          setUndoAction(null);
+        }
+      });
+
+      setTimeout(() => setUndoAction(null), 5000);
+    } catch (error) {
+      console.error("Error completing task:", error);
+      setError("Failed to update task status.");
+    }
+  };
+
+  const deleteTask = async (taskId: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, 'users', user.id.toString(), 'tasks', taskId));
+      if (currentFocusTask?.id === taskId) setCurrentFocusTask(null);
+    } catch (error) {
+      console.error("Error deleting task:", error);
+    }
+  };
+
+  const updateTask = async (taskId: string, updates: Partial<Mission>) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, 'users', user.id.toString(), 'tasks', taskId), updates);
+    } catch (error) {
+      console.error("Error updating task:", error);
+    }
   };
 
   const setFocusTask = (task: Mission | null) => {
@@ -180,9 +261,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateLifeScore = (score: number) => setLifeScore(score);
   const updateStreak = (newStreak: number) => setStreak(newStreak);
 
-  const addHabit = (habit: Partial<Habit>) => {
-    const newHabit: Habit = {
-      id: Math.random().toString(36).substr(2, 9),
+  const addHabit = async (habit: Partial<Habit>) => {
+    if (!user) return;
+    const newHabit = {
       title: habit.title || APP_CONFIG.DEFAULTS.HABIT_TITLE,
       description: habit.description || '',
       frequency: habit.frequency || 'daily',
@@ -190,53 +271,68 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       current_count: 0,
       streak: 0,
       category: habit.category || APP_CONFIG.DEFAULTS.HABIT_CATEGORY,
-      created_at: new Date().toISOString(),
-      ...habit
+      created_at: new Date().toISOString()
     };
-    setHabits(prev => [...prev, newHabit]);
+    try {
+      await addDoc(collection(db, 'users', user.id.toString(), 'habits'), newHabit);
+    } catch (error) {
+      console.error("Error adding habit:", error);
+    }
   };
 
-  const updateHabit = (habitId: string, updates: Partial<Habit>) => {
-    setHabits(prev => prev.map(h => h.id === habitId ? { ...h, ...updates } : h));
+  const updateHabit = async (habitId: string, updates: Partial<Habit>) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, 'users', user.id.toString(), 'habits', habitId), updates);
+    } catch (error) {
+      console.error("Error updating habit:", error);
+    }
   };
 
-  const toggleHabit = (habitId: string) => {
+  const toggleHabit = async (habitId: string) => {
+    if (!user) return;
+    const habit = habits.find(h => h.id === habitId);
+    if (!habit) return;
+
     const today = new Date().toISOString().split('T')[0];
-    setHabits(prev => prev.map(h => {
-      if (h.id === habitId) {
-        const isCompletedToday = h.last_completed_at?.startsWith(today);
-        
-        setHabitsHistory(prevHistory => ({
-          ...prevHistory,
-          [today]: (prevHistory[today] || 0) + (isCompletedToday ? -1 : 1)
-        }));
+    const isCompletedToday = habit.last_completed_at?.startsWith(today);
 
-        if (isCompletedToday) {
-          // Un-complete
-          return { ...h, last_completed_at: undefined, current_count: Math.max(0, h.current_count - 1) };
-        } else {
-          // Complete
-          return { 
-            ...h, 
-            last_completed_at: new Date().toISOString(), 
-            current_count: h.current_count + 1,
-            streak: h.streak + 1
-          };
-        }
+    try {
+      const habitDoc = doc(db, 'users', user.id.toString(), 'habits', habitId);
+      if (isCompletedToday) {
+        await updateDoc(habitDoc, {
+          last_completed_at: null,
+          current_count: Math.max(0, habit.current_count - 1)
+        });
+      } else {
+        await updateDoc(habitDoc, {
+          last_completed_at: new Date().toISOString(),
+          current_count: habit.current_count + 1,
+          streak: habit.streak + 1
+        });
       }
-      return h;
-    }));
+    } catch (error) {
+      console.error("Error toggling habit:", error);
+    }
   };
 
-  const deleteHabit = (habitId: string) => {
-    setHabits(prev => prev.filter(h => h.id !== habitId));
+  const deleteHabit = async (habitId: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, 'users', user.id.toString(), 'habits', habitId));
+    } catch (error) {
+      console.error("Error deleting habit:", error);
+    }
   };
 
-  const generateSchedule = async () => {
+   const generateSchedule = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const newSchedule = await generateScheduleWithAI(tasks);
+      const newSchedule = await generateScheduleWithAI(tasks, {
+        wakeTime: user?.wakeTime,
+        directive: user?.directive
+      });
       if (newSchedule && newSchedule.length > 0) {
         setSchedule(newSchedule);
       } else {
@@ -247,6 +343,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setError("Failed to connect to AI service. Please check your connection.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleAction = async (actionId: string, data?: any) => {
+    console.log('Action:', actionId, data);
+    switch (actionId) {
+      case 'START_FOCUS':
+        if (data?.task) {
+          setFocusTask(data.task);
+          setActiveTab('focus');
+        }
+        break;
+      case 'PILOT_MY_DAY':
+      case 'GENERATE_SCHEDULE':
+        await generateSchedule();
+        setActiveTab('schedule');
+        break;
+      case 'COMPLETE_TASK':
+        if (data?.taskId) completeTask(data.taskId);
+        break;
+      case 'GENERATE_INSIGHTS':
+        setActiveTab('analytics');
+        break;
+      case 'NAVIGATE':
+        if (data?.tab) setActiveTab(data.tab);
+        break;
+      default:
+        break;
     }
   };
 
@@ -276,7 +400,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateLifeScore,
       updateStreak,
       generateSchedule,
-      handleAction: async (id, data) => console.log('Action:', id, data),
+      handleAction,
       generateDayPlan: generateSchedule,
       generateAiInsights: async () => {},
       addHabit,
@@ -284,6 +408,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       toggleHabit,
       deleteHabit,
       setError,
+      undoAction,
+      setUndoAction,
       habitHistory,
       activeTab,
       setActiveTab

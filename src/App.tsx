@@ -1,10 +1,43 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ThemeProvider, useTheme } from './theme';
-import { AppProvider } from './context/AppContext';
+import { AppProvider, useAppContext } from './context/AppContext';
+import { useAuth } from './context/AuthContext';
 import { MinimalTheme } from './components/MinimalTheme';
 import { GamifiedTheme } from './components/GamifiedTheme';
 import { EliteTheme } from './components/EliteTheme';
-import { Settings } from 'lucide-react';
+import { Settings, Undo2 } from 'lucide-react';
+import { OnboardingOverlay } from './components/onboarding/OnboardingOverlay';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const UndoToast = () => {
+  const { undoAction } = useAppContext();
+  const { theme } = useTheme();
+
+  if (!undoAction) return null;
+
+  return (
+    <motion.div
+      initial={{ y: 50, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: 50, opacity: 0 }}
+      className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-sm"
+    >
+      <div className="bg-surface border border-border shadow-2xl rounded-2xl p-4 flex items-center justify-between gap-4">
+        <div className="flex flex-col">
+          <span className="text-xs text-text_secondary uppercase tracking-widest font-bold">Action Confirmed</span>
+          <span className="text-sm text-text_primary font-medium">{undoAction.message}</span>
+        </div>
+        <button
+          onClick={() => undoAction.undo()}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-black rounded-xl text-xs font-black uppercase tracking-wider hover:brightness-110 transition-all"
+        >
+          <Undo2 size={14} />
+          Undo
+        </button>
+      </div>
+    </motion.div>
+  );
+};
 
 const ThemeSwitcher = () => {
   const { theme, setTheme } = useTheme();
@@ -47,17 +80,58 @@ const ThemeSwitcher = () => {
 
 const AppContent = () => {
   const { theme } = useTheme();
+  const { user, updateUserProfile } = useAuth();
+  const [onboardingStep, setOnboardingStep] = useState(1);
+  const [onboardingData, setOnboardingData] = useState({
+    mission: 'focus',
+    wakeTime: '07:00',
+    wakePeriod: 'AM',
+    bedTime: '11:00',
+    bedPeriod: 'PM',
+    directive: 'focus'
+  });
 
-  switch (theme.id) {
-    case 'minimal':
-      return <MinimalTheme />;
-    case 'gamified':
-      return <GamifiedTheme />;
-    case 'elite':
-      return <EliteTheme />;
-    default:
-      return <MinimalTheme />;
-  }
+  const completeOnboarding = async () => {
+    if (user) {
+      await updateUserProfile({
+        onboardingComplete: true,
+        wakeTime: onboardingData.wakeTime,
+        directive: onboardingData.directive
+      });
+    }
+  };
+
+  const renderTheme = () => {
+    switch (theme.id) {
+      case 'minimal':
+        return <MinimalTheme />;
+      case 'gamified':
+        return <GamifiedTheme />;
+      case 'elite':
+        return <EliteTheme />;
+      default:
+        return <MinimalTheme />;
+    }
+  };
+
+  return (
+    <>
+      {renderTheme()}
+      <AnimatePresence>
+        <UndoToast />
+      </AnimatePresence>
+      {user && user.onboardingComplete === false && (
+        <OnboardingOverlay 
+          theme={theme}
+          onboardingStep={onboardingStep}
+          setOnboardingStep={setOnboardingStep}
+          onboardingData={onboardingData}
+          setOnboardingData={setOnboardingData}
+          completeOnboarding={completeOnboarding}
+        />
+      )}
+    </>
+  );
 };
 
 export default function App() {

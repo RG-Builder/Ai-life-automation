@@ -3,14 +3,14 @@ import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence } 
 import { initializeFirestore, getDocFromServer, doc } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "mock-api-key",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "mock-auth-domain",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "mock-project-id",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "mock-app-id",
-  databaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || "mock-database-id",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "mock-storage-bucket",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "mock-sender-id",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "mock-measurement-id",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyA_XqOOPjeobo0qKKnZiwJSFtgj6GHZVZw",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "gen-lang-client-0335857006.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "gen-lang-client-0335857006",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:1024422333401:web:8f2bdc06340b24d5fde7c8",
+  databaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || "ai-studio-081e94ee-3f0c-4e02-8c9b-0200c6b3c314",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "gen-lang-client-0335857006.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "1024422333401",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-YYS0PCT8QN",
 };
 
 console.log("🔥 Firebase initializing...");

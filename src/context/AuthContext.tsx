@@ -20,6 +20,7 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   isAuthReady: boolean;
+  updateUserProfile: (data: Partial<User>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,6 +30,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthReady, setIsAuthReady] = useState(false);
+
+  const updateUserProfile = async (data: Partial<User>) => {
+    if (!firebaseUser) return;
+    try {
+      const userDoc = doc(db, 'users', firebaseUser.uid);
+      await setDoc(userDoc, data, { merge: true });
+      setUser(prev => prev ? { ...prev, ...data } : null);
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
@@ -45,29 +57,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               id: fbUser.uid,
               email: fbUser.email || '',
               plan: data.subscription_plan || 'free',
-              role: data.role || 'user'
+              role: data.role || 'user',
+              onboardingComplete: data.onboardingComplete || false,
+              wakeTime: data.wakeTime || '07:00',
+              directive: data.directive || 'Balance & Growth',
+              lifeScore: data.lifeScore || 0,
+              streak: data.streak || 0
             });
             console.log("✅ User profile loaded from Firestore");
           } else {
             // Create initial profile
             console.log("🆕 Creating new user profile in Firestore...");
             const initialData = {
-              firebase_uid: fbUser.uid,
               email: fbUser.email,
               subscription_plan: 'free',
               role: 'user',
               created_at: new Date().toISOString(),
-              morning_person_score: 0.5,
-              peak_energy_start: '09:00',
-              peak_energy_end: '11:00',
-              focus_duration_avg: 25
+              onboardingComplete: false,
+              wakeTime: '07:00',
+              directive: 'Balance & Growth',
+              lifeScore: 0,
+              streak: 0
             };
             await setDoc(userDoc, initialData);
             setUser({
               id: fbUser.uid,
               email: fbUser.email || '',
               plan: 'free',
-              role: 'user'
+              role: 'user',
+              onboardingComplete: false,
+              wakeTime: '07:00',
+              directive: 'Balance & Growth',
+              lifeScore: 0,
+              streak: 0
             });
             console.log("✅ New user profile created successfully");
           }
@@ -109,7 +131,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ firebaseUser, user, loading, loginWithGoogle, logout, isAuthReady }}>
+    <AuthContext.Provider value={{ firebaseUser, user, loading, loginWithGoogle, logout, isAuthReady, updateUserProfile }}>
       {children}
     </AuthContext.Provider>
   );

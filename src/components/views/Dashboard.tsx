@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Bell, Brain, Sparkles, LayoutGrid, Activity } from 'lucide-react';
 import { LifeStateEngine } from '../dashboard/LifeStateEngine';
 import { NextActionCard } from '../dashboard/NextActionCard';
@@ -18,16 +18,17 @@ export const Dashboard: React.FC = () => {
     dailyScore, 
     handleAction,
     generateDayPlan,
-    generateAiInsights
+    generateAiInsights,
+    setActiveTab,
+    isLoading
   } = useAppContext();
   const { user } = useAuth();
   const { theme } = useTheme();
 
   const nextAction = missions.find(m => m.status === 'pending') || null;
-  const motivationQuote = "Your potential is limited only by your focus."; // Could be from context
-  const selfAwareness = null; // Could be from context
-  const setActiveTab = (tab: any) => {}; // Need to handle this or move to context
-  const setShowNotifications = (show: boolean) => {};
+  const motivationQuote = "Your potential is limited only by your focus."; 
+  const selfAwareness = { focusTimeMinutes: missions.filter(m => m.status === 'completed').reduce((acc, m) => acc + (m.duration || 0), 0) };
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const todayMissions = missions.filter(m => 
     isToday(m.created_at) || 

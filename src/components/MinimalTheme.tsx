@@ -28,21 +28,24 @@ import {
 import { cn } from '../lib/utils';
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../theme';
 import { TaskModal } from './TaskModal';
 import { HabitModal } from './HabitModal';
 import { Mission, Habit } from '../types';
 import { THEME_CONFIG } from '../config/theme.config';
 
+import { Dashboard } from './views/Dashboard';
+
 // --- MINIMAL THEME COMPONENTS ---
 
 export const MinimalTheme: React.FC = () => {
   const { error, setError, activeTab, setActiveTab } = useAppContext();
-  const theme = THEME_CONFIG.MINIMAL;
+  const { theme } = useTheme();
 
   return (
     <div 
       className="min-h-screen font-sans selection:bg-gray-200 flex flex-col"
-      style={{ backgroundColor: theme.COLORS.BACKGROUND, color: theme.COLORS.TEXT_MAIN }}
+      style={{ backgroundColor: theme.colors.background, color: theme.colors.text_primary }}
     >
       {/* Error Toast */}
       <AnimatePresence>
@@ -54,7 +57,7 @@ export const MinimalTheme: React.FC = () => {
             className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-sm"
           >
             <div className="bg-white border border-danger/20 rounded-2xl p-4 shadow-xl flex items-center gap-3">
-              <AlertCircle className="shrink-0" size={20} style={{ color: theme.COLORS.DANGER }} />
+              <AlertCircle className="shrink-0" size={20} style={{ color: theme.colors.danger }} />
               <p className="text-sm text-gray-700 flex-1">{error}</p>
               <button onClick={() => setError(null)} className="text-gray-400 hover:text-gray-600">
                 <X size={16} />
@@ -67,14 +70,16 @@ export const MinimalTheme: React.FC = () => {
       {/* Header */}
       <header 
         className="px-6 pt-12 pb-6 flex justify-between items-center sticky top-0 backdrop-blur-md z-50"
-        style={{ backgroundColor: `${theme.COLORS.BACKGROUND}CC` }} // CC is 80% opacity
+        style={{ backgroundColor: `${theme.colors.background}CC` }} // CC is 80% opacity
       >
         <div className="flex items-center gap-3">
           <img src={useAuth().firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
           <h1 className="font-bold text-lg leading-tight tracking-tight">
-            {activeTab === 'focus' ? theme.LABELS.TABS.focus : 
-             activeTab === 'habits' ? theme.LABELS.TABS.habits :
-             activeTab === 'tasks' ? theme.LABELS.TABS.tasks : theme.LABELS.TABS.insights}
+            {activeTab === 'home' ? theme.wording.navigation.home : 
+             activeTab === 'tasks' ? theme.wording.navigation.tasks :
+             activeTab === 'habits' ? theme.wording.navigation.habits :
+             activeTab === 'schedule' ? theme.wording.navigation.schedule :
+             theme.wording.navigation.analytics}
           </h1>
         </div>
         <div className="flex items-center gap-3">
@@ -92,23 +97,25 @@ export const MinimalTheme: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto px-6 pb-32">
         <AnimatePresence mode="wait">
-          {activeTab === 'focus' && <FocusScreen key="focus" />}
-          {activeTab === 'habits' && <HabitsScreen key="habits" />}
+          {activeTab === 'home' && <Dashboard key="home" />}
           {activeTab === 'tasks' && <TasksScreen key="tasks" />}
-          {activeTab === 'insights' && <InsightsScreen key="insights" />}
+          {activeTab === 'habits' && <HabitsScreen key="habits" />}
+          {activeTab === 'schedule' && <FocusScreen key="schedule" />}
+          {activeTab === 'analytics' && <InsightsScreen key="analytics" />}
         </AnimatePresence>
       </main>
 
       {/* Bottom Navigation */}
       <nav 
         className="fixed bottom-0 left-0 right-0 border-t border-gray-100 pb-safe pt-3 px-6 z-50"
-        style={{ backgroundColor: theme.COLORS.BACKGROUND }}
+        style={{ backgroundColor: theme.colors.background }}
       >
-        <div className="flex justify-between items-center mb-4 max-w-sm mx-auto">
-          <NavItem id="focus" icon={<Target size={22} />} label={theme.LABELS.NAV.focus} active={activeTab === 'focus'} onClick={() => setActiveTab('focus')} />
-          <NavItem id="habits" icon={<RefreshCw size={22} />} label={theme.LABELS.NAV.habits} active={activeTab === 'habits'} onClick={() => setActiveTab('habits')} />
-          <NavItem id="tasks" icon={<ClipboardList size={22} />} label={theme.LABELS.NAV.tasks} active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} />
-          <NavItem id="insights" icon={<BarChart2 size={22} />} label={theme.LABELS.NAV.insights} active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} />
+        <div className="flex justify-between items-center mb-4 max-w-sm mx-auto overflow-x-auto no-scrollbar gap-1">
+          <NavItem id="home" icon={<Target size={22} />} label={theme.wording.navigation.home} active={activeTab === 'home'} onClick={() => setActiveTab('home')} />
+          <NavItem id="tasks" icon={<ClipboardList size={22} />} label={theme.wording.navigation.tasks} active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} />
+          <NavItem id="habits" icon={<RefreshCw size={22} />} label={theme.wording.navigation.habits} active={activeTab === 'habits'} onClick={() => setActiveTab('habits')} />
+          <NavItem id="schedule" icon={<Settings size={22} />} label={theme.wording.navigation.schedule} active={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')} />
+          <NavItem id="analytics" icon={<BarChart2 size={22} />} label={theme.wording.navigation.analytics} active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
         </div>
       </nav>
     </div>
@@ -116,7 +123,7 @@ export const MinimalTheme: React.FC = () => {
 };
 
 const NavItem = ({ id, icon, label, active, onClick }: { id: string, icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) => {
-  const theme = THEME_CONFIG.MINIMAL;
+  const { theme } = useTheme();
   return (
     <button 
       onClick={onClick}
@@ -124,7 +131,7 @@ const NavItem = ({ id, icon, label, active, onClick }: { id: string, icon: React
         "flex flex-col items-center justify-center w-16 gap-1.5 transition-colors duration-200",
         !active && "text-gray-400 hover:text-gray-600"
       )}
-      style={active ? { color: theme.COLORS.PRIMARY } : {}}
+      style={active ? { color: theme.colors.primary } : {}}
     >
       {icon}
       <span className="text-[9px] font-bold tracking-wider">{label}</span>

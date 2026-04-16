@@ -12,12 +12,12 @@ interface NavigationProps {
 export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
   const { theme } = useTheme();
   const navItems = [
-    { id: 'home', icon: LayoutDashboard, label: theme.wording.dashboard.split(' ')[0] },
-    { id: 'tasks', icon: Target, label: theme.wording.missions.split(' ')[0] },
-    { id: 'habits', icon: Dumbbell, label: 'Habits' },
-    { id: 'schedule', icon: Clock, label: theme.wording.timeline.split(' ')[0] },
-    { id: 'analytics', icon: Brain, label: theme.wording.awareness.split(' ')[0] },
-    { id: 'settings', icon: Settings, label: 'Style' },
+    { id: 'home', icon: LayoutDashboard, label: theme.wording.navigation.home },
+    { id: 'tasks', icon: Target, label: theme.wording.navigation.tasks },
+    { id: 'habits', icon: Dumbbell, label: theme.wording.navigation.habits },
+    { id: 'schedule', icon: Clock, label: theme.wording.navigation.schedule },
+    { id: 'analytics', icon: Brain, label: theme.wording.navigation.analytics },
+    { id: 'settings', icon: Settings, label: theme.wording.navigation.settings },
   ];
 
   return (
