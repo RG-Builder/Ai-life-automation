@@ -88,7 +88,8 @@ service cloud.firestore {
                       isAdmin();
 
       match /tasks/{taskId} {
-        allow read, write: if (isOwner(userId) && isValidMission(request.resource.data)) || isAdmin();
+        allow read, delete: if isOwner(userId) || isAdmin();
+        allow create, update: if (isOwner(userId) && isValidMission(request.resource.data)) || isAdmin();
       }
 
       match /habits/{habitId} {
