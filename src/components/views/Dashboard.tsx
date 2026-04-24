@@ -8,6 +8,7 @@ import { isToday } from '../../lib/utils';
 import { useAppContext } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../theme';
+import { MOTIVATION_MESSAGES } from '../../services/motivationService';
 
 import { motion } from 'framer-motion';
 
@@ -20,13 +21,17 @@ export const Dashboard: React.FC = () => {
     generateDayPlan,
     generateAiInsights,
     setActiveTab,
-    isLoading
+    isLoading,
+    aiInsight,
+    streak
   } = useAppContext();
   const { user } = useAuth();
   const { theme } = useTheme();
 
   const nextAction = missions.find(m => m.status === 'pending') || null;
-  const motivationQuote = "Your potential is limited only by your focus."; 
+  const motivationQuote = motivationState?.escalation_level ? 
+    MOTIVATION_MESSAGES.ESCALATION.find(e => e.level === motivationState.escalation_level)?.text || MOTIVATION_MESSAGES.REWARDS[0]
+    : MOTIVATION_MESSAGES.REWARDS[Math.floor(Math.random() * MOTIVATION_MESSAGES.REWARDS.length)];
   const selfAwareness = { focusTimeMinutes: missions.filter(m => m.status === 'completed').reduce((acc, m) => acc + (m.duration || 0), 0) };
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -39,8 +44,25 @@ export const Dashboard: React.FC = () => {
   const totalToday = todayMissions.length;
 
   const getConsistencyPulse = () => {
-    // Mock pulse data based on missions
-    return [65, 78, 45, 90, 85, 70, 60, 80, 75, 88, 92, 85];
+    // Generate pulse data based on last 12 days of completed missions
+    const pulseData = [];
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      const isDateToday = isToday(date.toISOString());
+      
+      const completedOnDate = missions.filter(m => 
+        m.status === 'completed' && 
+        m.completed_at && 
+        (isDateToday ? isToday(m.completed_at) : m.completed_at.startsWith(date.toISOString().split('T')[0]))
+      ).length;
+      
+      // Calculate a percentage based on an arbitrary goal of 3 tasks a day for the visual pulse
+      const pulseScore = Math.min(100, Math.max(10, (completedOnDate / 3) * 100));
+      pulseData.push(pulseScore);
+    }
+    return pulseData;
   };
 
   return (
@@ -62,9 +84,9 @@ export const Dashboard: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <div className="text-right hidden sm:block">
-            <div className={`text-xs font-black uppercase tracking-widest text-text_primary`}>Level {Math.floor(missions.filter(m => m.status === 'completed').length / 5) + 1}</div>
+            <div className={`text-xs font-black uppercase tracking-widest text-text_primary`}>Level {Math.floor((missions.filter(m => m.status === 'completed').length + streak) / 5) + 1}</div>
             <div className="w-24 h-1.5 bg-border rounded-full mt-1 overflow-hidden">
-              <div className="h-full bg-primary" style={{ width: `${(missions.filter(m => m.status === 'completed').length % 5) * 20}%` }} />
+              <div className="h-full bg-primary" style={{ width: `${((missions.filter(m => m.status === 'completed').length + streak) % 5) * 20}%` }} />
             </div>
           </div>
           <motion.div 
@@ -101,14 +123,14 @@ export const Dashboard: React.FC = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-text_secondary">AI Insight</h2>
-            <Brain size={14} className="text-primary cursor-pointer hover:scale-110 transition-transform" onClick={() => handleAction('GENERATE_INSIGHTS')} />
+            <Brain size={14} className="text-primary cursor-pointer hover:scale-110 transition-transform" onClick={generateAiInsights} />
           </div>
           <motion.div 
             whileHover={theme.motion.hover}
             className="stitch-card p-4 bg-surface border-l-4 border-primary"
           >
             <p className="text-sm font-bold text-text_primary leading-relaxed">
-              {motivationQuote}
+              {aiInsight || motivationQuote}
             </p>
           </motion.div>
           

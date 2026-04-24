@@ -35,7 +35,8 @@ interface AppContextType {
   userProfile: any;
   motivationState: MotivationState | null;
   dailyScore: number;
-  timelineMatrix: any;
+  timelineMatrix: any; // Legacy name for aiInsight
+  aiInsight: string | null;
   
   // Actions
   addTask: (task: Partial<Mission>) => void;
@@ -73,12 +74,6 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const INITIAL_TASKS: Mission[] = [];
-
-const INITIAL_SCHEDULE: ScheduleItem[] = [];
-
-const INITIAL_HABITS: Habit[] = [];
-
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, updateUserProfile } = useAuth();
@@ -94,6 +89,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [error, setError] = useState<string | null>(null);
   const [undoAction, setUndoAction] = useState<{ message: string; undo: () => void } | null>(null);
   const [activeTab, setActiveTab] = useState<string>('focus');
+  const [motivationState, setMotivationState] = useState<MotivationState | null>(null);
+  const [aiInsight, setAiInsight] = useState<string | null>(null);
 
   // Sync with Firestore when user is logged in
   useEffect(() => {
@@ -102,12 +99,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setHabits([]);
       setLifeScore(APP_CONFIG.DEFAULT_STATE.LIFE_SCORE);
       setStreak(APP_CONFIG.DEFAULT_STATE.STREAK);
+      setMotivationState(null);
       return;
     }
 
     // Sync lifeScore and streak from user profile
     if (user.lifeScore !== undefined) setLifeScore(user.lifeScore);
     if (user.streak !== undefined) setStreak(user.streak);
+
+    // Sync motivation state
+    const loadMotivation = async () => {
+      try {
+        const { getMotivationState } = await import('../services/motivationService');
+        const state = await getMotivationState(user.id.toString());
+        setMotivationState(state);
+      } catch (e) { console.error(e); }
+    };
+    loadMotivation();
 
     // Listen for Tasks
     const tasksQuery = query(
@@ -346,13 +354,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const generateAiInsights = async () => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+      const { generateBehaviorInsight } = await import('../services/motivationService');
+      const newInsight = await generateBehaviorInsight(user.id.toString());
+      setAiInsight(newInsight || "Consistency detected. Neural pathways are stabilizing.");
+    } catch (err) {
+      console.error(err);
+      setError("Failed to generate insights.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleAction = async (actionId: string, data?: any) => {
     console.log('Action:', actionId, data);
+    const id = data?.taskId || data?.id;
+    
     switch (actionId) {
       case 'START_FOCUS':
         if (data?.task) {
           setFocusTask(data.task);
-          setActiveTab('focus');
+          setActiveTab('schedule');
         }
         break;
       case 'PILOT_MY_DAY':
@@ -361,9 +386,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveTab('schedule');
         break;
       case 'COMPLETE_TASK':
-        if (data?.taskId) completeTask(data.taskId);
+        if (id) completeTask(id);
+        break;
+      case 'DELETE_TASK':
+        if (id) deleteTask(id);
         break;
       case 'GENERATE_INSIGHTS':
+        await generateAiInsights();
         setActiveTab('analytics');
         break;
       case 'NAVIGATE':
@@ -389,9 +418,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       loading: isLoading,
       error,
       userProfile: null,
-      motivationState: null,
+      motivationState,
       dailyScore: lifeScore,
-      timelineMatrix: null,
+      timelineMatrix: aiInsight,
+      aiInsight,
       addTask,
       completeTask,
       deleteTask,
@@ -402,7 +432,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       generateSchedule,
       handleAction,
       generateDayPlan: generateSchedule,
-      generateAiInsights: async () => {},
+      generateAiInsights,
       addHabit,
       updateHabit,
       toggleHabit,

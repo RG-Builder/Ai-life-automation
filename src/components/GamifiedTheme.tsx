@@ -38,7 +38,7 @@ import { Dashboard } from './views/Dashboard';
 
 export const GamifiedTheme: React.FC = () => {
   const { firebaseUser } = useAuth();
-  const { error, setError, activeTab, setActiveTab } = useAppContext();
+  const { error, setError, activeTab, setActiveTab, tasks, streak } = useAppContext();
   const { theme } = useTheme();
 
   return (
@@ -78,10 +78,14 @@ export const GamifiedTheme: React.FC = () => {
           </div>
           <div>
             <h1 className="font-black text-lg leading-none">LifePilot AI</h1>
-            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: theme.colors.text_secondary }}>Level 14 Explorer</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: theme.colors.text_secondary }}>Level {Math.floor((tasks.filter(t => t.status === 'completed').length + streak) / 5) + 1} Explorer</p>
           </div>
         </div>
-        <button className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center relative" style={{ color: theme.colors.primary }}>
+        <button 
+          onClick={() => setError('Neural notifications synced. No new alerts at this time.')}
+          className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center relative" 
+          style={{ color: theme.colors.primary }}
+        >
           <div className="absolute top-2 right-2 w-2 h-2 rounded-full border border-white" style={{ backgroundColor: theme.colors.accent }}></div>
           <BellIcon />
         </button>
@@ -141,7 +145,7 @@ const NavItem = ({ id, icon, label, active, onClick }: { id: string, icon: React
 // --- SCREENS ---
 
 const MissionsScreen = () => {
-  const { tasks, currentFocusTask, setFocusTask, completeTask, streak, deleteTask, habits } = useAppContext();
+  const { tasks, currentFocusTask, setFocusTask, completeTask, streak, deleteTask, habits, setActiveTab } = useAppContext();
   const { firebaseUser } = useAuth();
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState<Mission | null>(null);
@@ -313,12 +317,22 @@ const MissionsScreen = () => {
           </p>
           <div className="flex gap-2">
             <button 
-              onClick={() => pendingTasks.length > 0 && setFocusTask(pendingTasks[0])}
+              onClick={() => {
+                if (pendingTasks.length > 0) {
+                  setFocusTask(pendingTasks[0]);
+                  setActiveTab('schedule');
+                }
+              }}
               className="bg-[#2C5A0D] text-white text-xs font-black px-4 py-2 rounded-xl shadow-[0_3px_0_#1A3608] active:translate-y-[3px] active:shadow-none"
             >
               YES, PILOT!
             </button>
-            <button className="text-[#5C7A46] text-xs font-black px-4 py-2 uppercase tracking-wider">MAYBE LATER</button>
+            <button 
+              onClick={() => setActiveTab('schedule')}
+              className="text-[#5C7A46] text-xs font-black px-4 py-2 uppercase tracking-wider"
+            >
+              MAYBE LATER
+            </button>
           </div>
         </div>
       </div>
@@ -353,7 +367,7 @@ const WinItem = ({ checked, text }: { checked: boolean, text: string, key?: any 
 );
 
 const ScheduleScreen = () => {
-  const { schedule, generateSchedule, lifeScore, isLoading, completeTask } = useAppContext();
+  const { schedule, generateSchedule, lifeScore, isLoading, completeTask, tasks, streak } = useAppContext();
   
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8 pt-4">
@@ -362,8 +376,8 @@ const ScheduleScreen = () => {
       <div className="bg-white rounded-[32px] p-6 shadow-sm border border-[#2C5A0D]/5">
         <div className="flex justify-between items-start mb-4">
           <div>
-            <h2 className="text-3xl font-black text-[#2C5A0D] leading-none mb-1">Next<br/>Level</h2>
-            <div className="text-[10px] font-black tracking-widest uppercase text-[#5C7A46]">LEVEL 25 ARCHITECT</div>
+            <h2 className="text-3xl font-black text-[#2C5A0D] leading-none mb-1">Rank</h2>
+            <div className="text-[10px] font-black tracking-widest uppercase text-[#5C7A46]">LEVEL {Math.floor((tasks.filter(t => t.status === 'completed').length + streak) / 5) + 1} ARCHITECT</div>
           </div>
           <div className="text-right">
             <div className="text-3xl font-black text-[#D97706] leading-none">{lifeScore}<span className="text-lg text-[#B45309]">/1200</span></div>
@@ -497,6 +511,7 @@ const ScheduleScreen = () => {
 
 const ChatScreen = () => {
   const { firebaseUser } = useAuth();
+  const { timelineMatrix, generateSchedule, isLoading, setActiveTab } = useAppContext();
   
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="pt-4 flex flex-col h-[calc(100vh-180px)]">
@@ -505,7 +520,7 @@ const ChatScreen = () => {
         <div className="w-20 h-20 bg-[#38BDF8] rounded-full flex items-center justify-center text-white shadow-lg shadow-[#38BDF8]/20 mb-4 border-4 border-white overflow-hidden">
           <img src={firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="Pilot" className="w-full h-full object-cover" />
         </div>
-        <div className="bg-[#92400E] text-white text-[10px] font-black px-3 py-1 rounded-full tracking-widest uppercase -mt-8 z-10 border-2 border-[#F4F9E7]">ARCHITECT</div>
+        <div className="bg-[#92400E] text-white text-[10px] font-black px-3 py-1 rounded-full tracking-widest uppercase -mt-8 z-10 border-2 border-[#F4F9E7]">PILOT</div>
         <h2 className="text-3xl font-black text-[#2C5A0D] mt-3">Mission Control 🚀</h2>
         <p className="text-[#5C7A46] font-medium text-sm">Ready to crush your goals today, {firebaseUser?.displayName?.split(' ')[0] || 'Captain'}?</p>
       </div>
@@ -517,28 +532,28 @@ const ChatScreen = () => {
             <Zap size={16} />
           </div>
           <div className="bg-[#38BDF8] text-white p-5 rounded-[28px] rounded-bl-sm shadow-sm max-w-[85%]">
-            <p className="font-medium leading-relaxed">Hey there! I'm your AI Pilot. I'm here to help you optimize your schedule and stay on track with your missions. What's on your mind?</p>
-          </div>
-        </div>
-
-        {/* User Message */}
-        <div className="flex gap-3 items-end justify-end">
-          <div className="bg-[#2C5A0D] text-white p-5 rounded-[28px] rounded-br-sm shadow-sm max-w-[85%]">
-            <p className="font-medium leading-relaxed">I'm feeling super energized today! Let's plan a big quest. ⚡</p>
-          </div>
-          <div className="w-8 h-8 bg-[#5C7A46] rounded-full flex items-center justify-center text-white shrink-0 shadow-sm overflow-hidden">
-            <img src={firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="User" className="w-full h-full object-cover" />
+            <p className="font-medium leading-relaxed">{timelineMatrix || "Hey there! I'm your AI Pilot. I'm here to help you optimize your schedule and stay on track with your missions. Ready to begin?"}</p>
           </div>
         </div>
       </div>
 
       {/* Action Buttons */}
       <div className="flex gap-3 mt-auto pt-4 bg-gradient-to-t from-[#F4F9E7] via-[#F4F9E7] to-transparent">
-        <button className="flex-1 bg-[#2C5A0D] text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-[0_4px_0_#1A3608] active:translate-y-1 active:shadow-none transition-all">
-          <Plus size={18} strokeWidth={3} />
-          Plan my quest
+        <button 
+          onClick={() => {
+            generateSchedule();
+            setActiveTab('schedule');
+          }}
+          disabled={isLoading}
+          className="flex-1 bg-[#2C5A0D] text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-[0_4px_0_#1A3608] active:translate-y-1 active:shadow-none transition-all disabled:opacity-50"
+        >
+          {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} strokeWidth={3} />}
+          {isLoading ? 'Planning...' : 'Plan my quest'}
         </button>
-        <button className="flex-1 bg-[#92400E] text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-[0_4px_0_#78350F] active:translate-y-1 active:shadow-none transition-all">
+        <button 
+          onClick={() => setActiveTab('habits')}
+          className="flex-1 bg-[#92400E] text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-[0_4px_0_#78350F] active:translate-y-1 active:shadow-none transition-all"
+        >
           <Flame size={18} strokeWidth={3} />
           Review streaks
         </button>
@@ -582,28 +597,16 @@ const StreaksScreen = () => {
       {/* Weekly XP */}
       <div className="bg-white rounded-[32px] p-6 shadow-sm border border-[#2C5A0D]/5">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-black text-[#2C5A0D]">Weekly XP Gain</h3>
+          <h3 className="text-xl font-black text-[#2C5A0D]">Weekly Insights</h3>
           <div className="flex gap-1">
             <div className="w-2 h-2 rounded-full bg-[#2C5A0D]"></div>
             <div className="w-2 h-2 rounded-full bg-[#E7F6D5]"></div>
           </div>
         </div>
         
-        <div className="flex justify-between items-end h-32 pb-6 border-b-2 border-dashed border-[#E7F6D5]">
-          {/* Mock Chart Bars */}
-          <div className="w-8 bg-[#E7F6D5] rounded-t-xl h-[40%]"></div>
-          <div className="w-8 bg-[#E7F6D5] rounded-t-xl h-[60%]"></div>
-          <div className="w-8 bg-[#E7F6D5] rounded-t-xl h-[30%]"></div>
-          <div className="w-8 bg-[#2C5A0D] rounded-t-xl h-[80%] relative">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-4 h-1 bg-[#2C5A0D] rounded-full"></div>
-          </div>
-          <div className="w-8 bg-transparent h-full"></div>
-          <div className="w-8 bg-transparent h-full"></div>
-          <div className="w-8 bg-transparent h-full"></div>
-        </div>
-        <div className="flex justify-between mt-3 px-1 text-[10px] font-black text-[#8A9E7B] uppercase tracking-widest">
-          <span>MON</span><span>TUE</span><span>WED</span><span className="text-[#2C5A0D]">THU</span><span>FRI</span><span>SAT</span><span>SUN</span>
-        </div>
+        <p className="text-[#5C7A46] text-sm text-center py-4 bg-[#E7F6D5]/50 rounded-2xl italic">
+          "Consistent daily actions build the foundation for massive success."
+        </p>
       </div>
 
       {/* Habit List */}

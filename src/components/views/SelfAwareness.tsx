@@ -49,7 +49,6 @@ export const SelfAwareness: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-5xl font-black text-text_primary">{cognitiveEfficiency}%</span>
-            <span className="text-xs font-bold text-success uppercase tracking-widest">+4.2% vs last week</span>
           </div>
           <div className="h-2 w-full bg-surface rounded-full overflow-hidden">
             <motion.div 
@@ -93,7 +92,7 @@ export const SelfAwareness: React.FC = () => {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
           <div className="space-y-2">
             <div className="text-[10px] font-black uppercase tracking-widest text-text_secondary">Focus Minutes</div>
-            <div className="text-3xl font-black text-text_primary">{selfAwareness?.focusTimeMinutes || 0}</div>
+            <div className="text-3xl font-black text-text_primary">{completedMissions.reduce((acc, m) => acc + (m.duration || 0), 0)}</div>
           </div>
           <div className="space-y-2">
             <div className="text-[10px] font-black uppercase tracking-widest text-text_secondary">Missions Secured</div>
@@ -105,7 +104,7 @@ export const SelfAwareness: React.FC = () => {
           </div>
           <div className="space-y-2">
             <div className="text-[10px] font-black uppercase tracking-widest text-text_secondary">Drive Score</div>
-            <div className="text-3xl font-black text-primary">{selfAwareness?.productivityScore || 0}</div>
+            <div className="text-3xl font-black text-primary">{Math.round(cognitiveEfficiency * 0.7 + habitConsistency * 0.3)}</div>
           </div>
         </div>
       </motion.div>

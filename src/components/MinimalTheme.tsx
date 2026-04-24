@@ -88,7 +88,10 @@ export const MinimalTheme: React.FC = () => {
               Demo Mode
             </div>
           )}
-          <button className="w-8 h-8 flex items-center justify-center text-gray-700 hover:text-gray-900 transition-colors">
+          <button 
+            onClick={() => setError('Settings interface loading... System in optimal state.')}
+            className="w-8 h-8 flex items-center justify-center text-gray-700 hover:text-gray-900 transition-colors"
+          >
             <Settings size={22} fill="currentColor" className="text-gray-700" />
           </button>
         </div>
@@ -142,7 +145,7 @@ const NavItem = ({ id, icon, label, active, onClick }: { id: string, icon: React
 // --- SCREENS ---
 
 const FocusScreen = () => {
-  const { tasks, completedTasks, currentFocusTask, setFocusTask, schedule, completeTask } = useAppContext();
+  const { tasks, completedTasks, currentFocusTask, setFocusTask, schedule, completeTask, setActiveTab } = useAppContext();
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState<Mission | null>(null);
   
@@ -263,7 +266,10 @@ const FocusScreen = () => {
             " Your momentum is high. Keep pushing towards your weekly objectives." : 
             " Start your first mission to build momentum for the day."}
         </p>
-        <button className="text-[#2E4536] font-bold text-sm flex items-center gap-2 hover:opacity-80 transition-opacity">
+        <button 
+          onClick={() => setActiveTab('schedule')}
+          className="text-[#2E4536] font-bold text-sm flex items-center gap-2 hover:opacity-80 transition-opacity"
+        >
           Explore Schedule Optimization <span className="text-lg">→</span>
         </button>
       </div>
@@ -592,15 +598,29 @@ const TasksScreen = () => {
 
 const InsightsScreen = () => {
   const { user, firebaseUser } = useAuth();
-  const { tasks, habits, completedTasks } = useAppContext();
+  const { tasks, habits, completedTasks, timelineMatrix, generateSchedule, isLoading, addTask, setActiveTab } = useAppContext();
+  const [text, setText] = useState('');
   
   const userName = firebaseUser?.displayName?.split(' ')[0] || "Pilot";
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+
+  const handleSend = async () => {
+    if (!text.trim()) return;
+    if (text.toLowerCase().includes('plan') || text.toLowerCase().includes('schedule')) {
+      await generateSchedule();
+      setActiveTab('schedule');
+    } else {
+      addTask({ title: text });
+    }
+    setText('');
+  };
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="pt-4 flex flex-col min-h-[calc(100vh-180px)]">
       
       <div className="mb-8">
-        <h2 className="text-4xl font-bold tracking-tight text-gray-900 mb-4">Good evening, {userName}</h2>
+        <h2 className="text-4xl font-bold tracking-tight text-gray-900 mb-4">{greeting}, {userName}</h2>
         <p className="text-gray-500 text-lg leading-relaxed">
           Your AI Architect is ready to structure your intent.
         </p>
@@ -618,23 +638,7 @@ const InsightsScreen = () => {
               <span className="text-xs text-gray-400">Now</span>
             </div>
             <div className="bg-white p-5 rounded-2xl rounded-tl-none text-[15px] text-gray-700 leading-relaxed shadow-sm">
-              I've analyzed your progress. You've completed {completedTasks.length} missions today. 
-              {habits.length > 0 ? ` Your ritual consistency is at ${Math.round((habits.filter(h => h.streak > 0).length / habits.length) * 100)}%.` : ""}
-              How shall we structure your next focus block?
-            </div>
-          </div>
-        </div>
-
-        {/* User Message */}
-        <div className="flex gap-4 flex-row-reverse">
-          <img src={firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="Profile" className="w-10 h-10 rounded-full object-cover shrink-0 shadow-sm" />
-          <div className="flex-1 flex flex-col items-end">
-            <div className="flex items-baseline gap-2 mb-1">
-              <span className="text-xs text-gray-400">Just now</span>
-              <span className="text-[10px] font-bold tracking-wider text-gray-500 uppercase">You</span>
-            </div>
-            <div className="bg-[#405C4A] text-white p-5 rounded-2xl rounded-tr-none text-[15px] leading-relaxed shadow-sm max-w-[90%]">
-              I want to optimize my evening for deep recovery. What do you suggest?
+              {timelineMatrix || `I've analyzed your progress. You've completed ${completedTasks.length} missions today. How shall we structure your next focus block?`}
             </div>
           </div>
         </div>
@@ -643,28 +647,25 @@ const InsightsScreen = () => {
       {/* Input Area */}
       <div className="fixed bottom-[72px] left-0 right-0 bg-gradient-to-t from-[#F9FAFB] via-[#F9FAFB] to-transparent pt-10 pb-4 px-6 z-40">
         <div className="max-w-sm mx-auto">
-          <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide -mx-6 px-6">
-            <button className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm hover:bg-gray-50 transition-colors">
-              Optimise my evening
-            </button>
-            <button className="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap shadow-sm hover:bg-gray-50 transition-colors">
-              Review today's goals
-            </button>
-          </div>
-          
-          <div className="relative flex items-center">
-            <button className="absolute left-4 w-8 h-8 bg-[#E5F3E8] text-[#405C4A] rounded-full flex items-center justify-center hover:scale-105 transition-transform z-10">
+          <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="relative flex items-center">
+            <button type="button" onClick={() => setActiveTab('tasks')} className="absolute left-4 w-8 h-8 bg-[#E5F3E8] text-[#405C4A] rounded-full flex items-center justify-center hover:scale-105 transition-transform z-10">
               <Plus size={18} />
             </button>
             <input 
               type="text" 
+              value={text}
+              onChange={(e) => setText(e.target.value)}
               placeholder="Design your intent..." 
               className="w-full bg-white border border-gray-200 rounded-full py-4 pl-16 pr-14 text-base focus:outline-none focus:ring-2 focus:ring-[#405C4A]/20 transition-all shadow-sm"
             />
-            <button className="absolute right-4 w-8 h-8 bg-[#405C4A] text-white rounded-full flex items-center justify-center hover:scale-105 transition-transform z-10">
-              <Send size={14} className="ml-0.5" />
+            <button 
+              type="submit"
+              disabled={isLoading}
+              className="absolute right-4 w-8 h-8 bg-[#405C4A] text-white rounded-full flex items-center justify-center hover:scale-105 transition-transform z-10 disabled:opacity-50"
+            >
+              {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} className="ml-0.5" />}
             </button>
-          </div>
+          </form>
         </div>
       </div>
 

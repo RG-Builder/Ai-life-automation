@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from './ui/Modal';
 import { useAppContext } from '../context/AppContext';
 import { Habit } from '../types';
+import { useTheme } from '../theme';
 
 interface HabitModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface HabitModalProps {
 
 export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, habitToEdit }) => {
   const { addHabit, updateHabit } = useAppContext();
+  const { theme } = useTheme();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [goalCount, setGoalCount] = useState(1);
@@ -58,52 +60,53 @@ export const HabitModal: React.FC<HabitModalProps> = ({ isOpen, onClose, habitTo
     <Modal isOpen={isOpen} onClose={onClose} title={habitToEdit ? 'Edit Ritual' : 'New Ritual'}>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Ritual Name</label>
+          <label className="block text-[10px] font-bold text-text_secondary uppercase tracking-widest mb-2">Ritual Name</label>
           <input
             autoFocus
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Morning Meditation"
-            className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 text-gray-900 focus:ring-2 focus:ring-[#405C4A]/20 transition-all"
+            className="w-full bg-surface border border-border rounded-2xl px-6 py-4 text-text_primary focus:ring-2 focus:ring-primary/20 transition-all"
           />
         </div>
 
         <div>
-          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Description</label>
+          <label className="block text-[10px] font-bold text-text_secondary uppercase tracking-widest mb-2">Description</label>
           <input
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="What's the goal?"
-            className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 text-gray-900 focus:ring-2 focus:ring-[#405C4A]/20 transition-all"
+            className="w-full bg-surface border border-border rounded-2xl px-6 py-4 text-text_primary focus:ring-2 focus:ring-primary/20 transition-all"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Daily Goal</label>
+            <label className="block text-[10px] font-bold text-text_secondary uppercase tracking-widest mb-2">Daily Goal</label>
             <input
               type="number"
               value={Number.isNaN(goalCount) ? '' : goalCount}
               onChange={(e) => setGoalCount(parseInt(e.target.value))}
-              className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 text-gray-900 focus:ring-2 focus:ring-[#405C4A]/20 transition-all"
+              className="w-full bg-surface border border-border rounded-2xl px-6 py-4 text-text_primary focus:ring-2 focus:ring-primary/20 transition-all"
             />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Category</label>
+            <label className="block text-[10px] font-bold text-text_secondary uppercase tracking-widest mb-2">Category</label>
             <input
               type="text"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-gray-50 border-none rounded-2xl px-6 py-4 text-gray-900 focus:ring-2 focus:ring-[#405C4A]/20 transition-all"
+              className="w-full bg-surface border border-border rounded-2xl px-6 py-4 text-text_primary focus:ring-2 focus:ring-primary/20 transition-all"
             />
           </div>
         </div>
 
         <button
           type="submit"
-          className="w-full bg-[#405C4A] text-white py-4 rounded-2xl font-bold hover:bg-[#2E4536] transition-all shadow-lg shadow-[#405C4A]/20"
+          className="w-full bg-primary text-white py-4 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg"
+          style={{ backgroundColor: theme.colors.primary }}
         >
           {habitToEdit ? 'Update Ritual' : 'Establish Ritual'}
         </button>

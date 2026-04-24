@@ -136,7 +136,7 @@ const NavItem = ({ id, label, active, onClick }: { id: string, label: string, ac
 // --- SCREENS ---
 
 const CoreScreen = () => {
-  const { tasks, currentFocusTask, completeTask, setFocusTask, lifeScore, addTask, deleteTask } = useAppContext();
+  const { tasks, currentFocusTask, completeTask, setFocusTask, lifeScore, addTask, deleteTask, handleAction } = useAppContext();
   const [command, setCommand] = useState('');
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState<Mission | null>(null);
@@ -158,19 +158,23 @@ const CoreScreen = () => {
     e.preventDefault();
     if (!command.trim()) return;
     
-    if (command.toLowerCase().startsWith('add ')) {
+    const cmd = command.toLowerCase();
+    if (cmd.startsWith('add ')) {
       const title = command.slice(4);
-      addTask({
-        title,
-        priority: 'medium',
-        duration: 30,
-        category: 'work'
-      });
+      addTask({ title, priority: 'medium', duration: 30, category: 'work' });
       setCommand('');
-    } else if (command.toLowerCase() === 'clear') {
+    } else if (cmd === 'clear') {
+      setCommand('');
+    } else if (cmd === 'pilot' || cmd === 'generate') {
+      handleAction('GENERATE_SCHEDULE');
+      setCommand('');
+    } else if (cmd === 'insight' || cmd === 'analyze') {
+      handleAction('GENERATE_INSIGHTS');
       setCommand('');
     } else {
-      // Unknown command
+      // Show error in terminal feel
+      setCommand(`COMMAND_NOT_FOUND: ${command}`);
+      setTimeout(() => setCommand(''), 2000);
     }
   };
 
@@ -421,7 +425,7 @@ const DriverItem = ({ name, status, mem }: any) => (
 );
 
 const PilotScreen = () => {
-  const { currentFocusTask, schedule, generateSchedule, isLoading, completeTask } = useAppContext();
+  const { currentFocusTask, schedule, generateSchedule, isLoading, completeTask, tasks, habits } = useAppContext();
   
   return (
     <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.02 }} className="space-y-6 pt-6">
@@ -470,20 +474,20 @@ const PilotScreen = () => {
         <div className="space-y-4">
           <div>
             <div className="flex justify-between text-[10px] mb-1">
-              <span>CPU_ALLOCATION</span>
-              <span>88%</span>
+              <span>MISSION_LOAD</span>
+              <span>{tasks.length > 0 ? Math.round((tasks.filter(t => t.status === 'pending').length / tasks.length) * 100) : 0}%</span>
             </div>
             <div className="h-1.5 bg-[#00FF41]/20">
-              <div className="h-full bg-[#00FF41] w-[88%] shadow-[0_0_5px_#00FF41]"></div>
+              <div className="h-full bg-[#00FF41] shadow-[0_0_5px_#00FF41]" style={{ width: `${tasks.length > 0 ? Math.round((tasks.filter(t => t.status === 'pending').length / tasks.length) * 100) : 0}%` }}></div>
             </div>
           </div>
           <div>
             <div className="flex justify-between text-[10px] mb-1">
-              <span>MEM_BUFFER</span>
-              <span>45%</span>
+              <span>LOGIC_STABILITY</span>
+              <span>{habits.length > 0 ? Math.round((habits.filter(h => h.last_completed_at?.startsWith(new Date().toISOString().split('T')[0])).length / habits.length) * 100) : 0}%</span>
             </div>
             <div className="h-1.5 bg-[#00FF41]/20">
-              <div className="h-full bg-[#00FF41] w-[45%]"></div>
+              <div className="h-full bg-[#00FF41]" style={{ width: `${habits.length > 0 ? Math.round((habits.filter(h => h.last_completed_at?.startsWith(new Date().toISOString().split('T')[0])).length / habits.length) * 100) : 0}%` }}></div>
             </div>
           </div>
         </div>
@@ -527,7 +531,7 @@ const SequenceStep = ({ num, title, status, active }: any) => (
 
 const SystemScreen = () => {
   const { theme } = useTheme();
-  const { lifeScore, streak } = useAppContext();
+  const { lifeScore, streak, timelineMatrix, generateAiInsights, isLoading } = useAppContext();
 
   return (
     <motion.div 
@@ -554,9 +558,18 @@ const SystemScreen = () => {
       </div>
 
       <div className="border p-4" style={{ borderColor: `${theme.colors.primary}4D` }}>
-        <h3 className="text-xs font-bold tracking-widest uppercase mb-4" style={{ color: theme.colors.primary }}>AI Analysis</h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xs font-bold tracking-widest uppercase" style={{ color: theme.colors.primary }}>AI Analysis</h3>
+          <button 
+            onClick={generateAiInsights}
+            disabled={isLoading}
+            className="text-[10px] bg-primary/10 border border-primary/30 px-3 py-1 hover:bg-primary/20 transition-all uppercase tracking-widest disabled:opacity-50"
+          >
+            {isLoading ? "Analyzing..." : "Recalibrate"}
+          </button>
+        </div>
         <p className="text-sm leading-relaxed" style={{ color: theme.colors.text_secondary }}>
-          System operating within acceptable parameters. Efficiency is optimal. Continue executing core logic protocols to maintain integrity.
+          {timelineMatrix || "System operating within acceptable parameters. Efficiency is optimal. Continue executing core logic protocols to maintain integrity."}
         </p>
       </div>
     </motion.div>
