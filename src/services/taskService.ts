@@ -13,7 +13,16 @@ export const taskService = {
 
   addTask: async (userId: string, task: Partial<Mission>) => {
     try {
-      const impact_level = task.impact_level || 5;
+      const parsedImpactLevel = Number(task.impact_level);
+      const impact_level = Number.isFinite(parsedImpactLevel) ? Math.min(10, Math.max(1, parsedImpactLevel)) : 5;
+      const parsedUrgency = Number(task.urgency_score);
+      const urgency_score = Number.isFinite(parsedUrgency) ? Math.min(10, Math.max(1, parsedUrgency)) : 5;
+      const parsedEffort = Number(task.estimated_effort);
+      const estimated_effort = Number.isFinite(parsedEffort) ? Math.min(5, Math.max(1, parsedEffort)) : 3;
+      const parsedDuration = Number(task.duration);
+      const duration = Number.isFinite(parsedDuration) ? Math.max(1, parsedDuration) : 30;
+      const title = (task.title || '').trim() || 'Untitled Mission';
+
       let impact: 'low' | 'moderate' | 'high' | 'critical' = 'moderate';
       if (impact_level >= 9) impact = 'critical';
       else if (impact_level >= 7) impact = 'high';
@@ -21,17 +30,17 @@ export const taskService = {
       else impact = 'low';
 
       const newTask = {
-        title: task.title || 'Untitled Mission',
+        title,
         status: 'pending',
         priority: task.priority || (impact_level >= 7 ? 'high' : impact_level >= 4 ? 'medium' : 'low'),
         deadline: task.deadline || null,
-        duration: task.duration || 30,
+        duration,
         category: task.category || 'general',
         impact: impact,
-        urgency: task.urgency_score || 5, // Mapping urgency_score to urgency for compatibility
-        urgency_score: task.urgency_score || 5,
-        importance: task.impact_level || 5, // Mapping impact_level to importance
-        estimated_effort: task.estimated_effort || 3,
+        urgency: urgency_score, // Mapping urgency_score to urgency for compatibility
+        urgency_score,
+        importance: impact_level, // Mapping impact_level to importance
+        estimated_effort,
         impact_level: impact_level,
         is_habit: task.is_habit || false,
         streak: task.streak || 0,
