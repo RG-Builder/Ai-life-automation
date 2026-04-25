@@ -9,8 +9,8 @@ export const APP_CONFIG = {
     HABIT_HISTORY: 'lifepilot_habit_history',
   },
   DEFAULT_STATE: {
-    LIFE_SCORE: 84,
-    STREAK: 14,
+    LIFE_SCORE: 0,
+    STREAK: 0,
   },
   SCORING: {
     TASK_COMPLETION_BONUS: 5,

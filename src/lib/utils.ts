@@ -15,20 +15,12 @@ export function isToday(date: any): boolean {
 }
 
 export function toDate(date: any): Date {
+  if (!date) return new Date();
   if (date instanceof Date) return date;
   if (typeof date === 'string') return new Date(date);
   if (date && typeof date === 'object' && 'seconds' in date) {
     return new Date(date.seconds * 1000);
   }
-  return new Date(date);
-}
-
-export function handleFirestoreError(error: any, operation: string, path: string) {
-  console.error(`Firestore error during ${operation} at ${path}:`, error);
-  return null;
-}
-
-export function getDocFromServer(ref: any) {
-  // Mock for linting, actual implementation should come from firebase/firestore
-  return Promise.resolve({ exists: () => false, data: () => null });
+  const parsed = new Date(date);
+  return isNaN(parsed.getTime()) ? new Date() : parsed;
 }

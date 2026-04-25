@@ -4,8 +4,8 @@ export const API_CONFIG = {
   },
   AI: {
     MODELS: {
-      PRIMARY: "gemini-2.5-pro",
-      FAST: "gemini-2.5-flash",
+      PRIMARY: "gemini-2.0-flash",
+      FAST: "gemini-2.0-flash",
     },
     FALLBACK_STATIC: "Next Action: Focus on your current priority.\n\nInsight: AI systems are temporarily limited, but your productivity doesn't have to be.",
     PROMPTS: {

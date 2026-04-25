@@ -6,7 +6,7 @@ import { useAppContext } from '../../context/AppContext';
 import { useTheme } from '../../theme';
 
 export const TimelineMatrix: React.FC = () => {
-  const { timelineMatrix, generateDayPlan, handleAction, loading } = useAppContext();
+  const { schedule, generateDayPlan, handleAction, loading } = useAppContext();
   const { theme } = useTheme();
   return (
     <motion.div 
@@ -43,7 +43,7 @@ export const TimelineMatrix: React.FC = () => {
           className="absolute left-[23px] sm:left-[27px] top-4 bottom-4 w-1 bg-gradient-to-b from-primary via-secondary to-accent opacity-10 rounded-full"
         ></motion.div>
         
-        {timelineMatrix.length > 0 ? timelineMatrix.map((mission, idx) => (
+        {schedule && schedule.length > 0 ? schedule.map((mission, idx) => (
           <motion.div key={mission.id} variants={theme.motion.variants.item} className="relative group">
             {/* Timeline Node */}
             <div className={`absolute -left-[38px] sm:-left-[45px] top-2 size-7 sm:size-9 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-background z-10 flex items-center justify-center transition-all duration-500 ${mission.status === 'completed' ? 'bg-primary' : 'bg-primary shadow-lg shadow-primary/40'}`}>
@@ -76,7 +76,7 @@ export const TimelineMatrix: React.FC = () => {
                   <motion.button 
                     whileHover={theme.motion.hover}
                     whileTap={theme.motion.tap}
-                    onClick={() => handleAction('COMPLETE_TASK', { id: mission.id, streak: mission.streak })}
+                    onClick={() => handleAction('COMPLETE_TASK', { id: mission.id })}
                     className={`size-10 sm:size-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-300 ${mission.status === 'completed' ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-surface text-text_secondary hover:text-text_primary hover:bg-primary hover:text-black'}`}
                   >
                     <CheckCircle2 size={20} />

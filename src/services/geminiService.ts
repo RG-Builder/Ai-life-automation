@@ -37,7 +37,8 @@ export const generateScheduleWithAI = async (
           "endTime": "HH:MM",
           "duration": "Xh Ym",
           "type": "deep-work" | "meeting" | "admin" | "break",
-          "completed": false
+          "completed": false,
+          "status": "pending"
         }
       ]
       
@@ -117,7 +118,8 @@ function generateSimpleSchedule(tasks: Mission[], wakeTime?: string): ScheduleIt
       endTime,
       duration: `${task.duration || API_CONFIG.SCHEDULING.DEFAULT_TASK_DURATION}m`,
       type: task.priority === 'high' ? 'deep-work' : 'admin',
-      completed: false
+      completed: false,
+      status: 'pending'
     });
     
     // Add break after each task
@@ -130,7 +132,8 @@ function generateSimpleSchedule(tasks: Mission[], wakeTime?: string): ScheduleIt
         endTime: `${Math.floor(currentTime / 60).toString().padStart(2, '0')}:${(currentTime % 60).toString().padStart(2, '0')}`,
         duration: `${API_CONFIG.SCHEDULING.BREAK_DURATION}m`,
         type: 'break',
-        completed: false
+        completed: false,
+        status: 'pending'
       });
       currentTime += API_CONFIG.SCHEDULING.BREAK_DURATION;
     }

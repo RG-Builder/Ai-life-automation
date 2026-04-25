@@ -4,7 +4,7 @@ import { LifeStateEngine } from '../dashboard/LifeStateEngine';
 import { NextActionCard } from '../dashboard/NextActionCard';
 import { MissionCard } from '../missions/MissionCard';
 import { Mission, MotivationState, Analytics, User } from '../../types/index';
-import { isToday } from '../../lib/utils';
+import { isToday, toDate } from '../../lib/utils';
 import { useAppContext } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../theme';
@@ -52,11 +52,17 @@ export const Dashboard: React.FC = () => {
       date.setDate(date.getDate() - i);
       const isDateToday = isToday(date.toISOString());
       
-      const completedOnDate = missions.filter(m => 
-        m.status === 'completed' && 
-        m.completed_at && 
-        (isDateToday ? isToday(m.completed_at) : m.completed_at.startsWith(date.toISOString().split('T')[0]))
-      ).length;
+      const completedOnDate = missions.filter(m => {
+        if (m.status !== 'completed' || !m.completed_at) return false;
+        if (isDateToday) return isToday(m.completed_at);
+        try {
+          const mDate = toDate(m.completed_at).toISOString().split('T')[0];
+          const targetDate = date.toISOString().split('T')[0];
+          return mDate === targetDate;
+        } catch (e) {
+          return false;
+        }
+      }).length;
       
       // Calculate a percentage based on an arbitrary goal of 3 tasks a day for the visual pulse
       const pulseScore = Math.min(100, Math.max(10, (completedOnDate / 3) * 100));

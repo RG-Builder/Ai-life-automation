@@ -56,11 +56,10 @@ export const HabitCard: React.FC<HabitCardProps> = ({ habit, editHabit, handleAc
             <Edit3 size={18} />
           </motion.button>
           <motion.button 
-            whileHover={habit.current_count < habit.goal_count ? { scale: 1.1 } : {}}
-            whileTap={habit.current_count < habit.goal_count ? { scale: 0.9 } : {}}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             onClick={() => handleAction('TOGGLE_HABIT', { id: habit.id, current_count: habit.current_count, streak: habit.streak })}
-            className={`size-10 rounded-xl flex items-center justify-center transition-all ${habit.current_count >= habit.goal_count ? 'bg-success/20 text-success cursor-default' : 'bg-primary text-black hover:scale-110 shadow-lg shadow-primary/20'}`}
-            disabled={habit.current_count >= habit.goal_count}
+            className={`size-10 rounded-xl flex items-center justify-center transition-all ${habit.current_count >= habit.goal_count ? 'bg-success/20 text-success' : 'bg-primary text-black hover:scale-110 shadow-lg shadow-primary/20'}`}
           >
             <Check size={20} strokeWidth={3} />
           </motion.button>

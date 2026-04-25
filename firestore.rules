@@ -1,125 +1,119 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    //
-    // Collection: users
-    // Document ID: userId (Auth UID)
-    // Fields:
-    //   - email: string (required)
-    //   - subscription_plan: string ('free' | 'premium' | 'trial') (required)
-    //   - role: string ('user' | 'admin') (optional)
-    //   - created_at: string (ISO 8601) (optional)
-    //
-    // Sub-collections under /users/{userId}:
-    //   - tasks: Mission documents
-    //   - habits: Habit documents
-    //   - goals: Goal documents
-    //   - ai_insights: Insight documents
-    //   - daily_scores: DailyScore documents (ID is date YYYY-MM-DD)
-    //   - motivation: Single document 'state' (MotivationState)
-    //   - reminder_logs: Log documents
-    //
-    // ===============================================================
-
-    // ===============================================================
-    // Helper Functions
-    // ===============================================================
-    
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      return isAuthenticated() &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || request.auth.token.admin == true);
-    }
-
-    function hasRequiredFields(fields) {
-      return request.resource.data.keys().hasAll(fields);
-    }
-
-    function isValidEmail(email) {
-      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
-    }
-
-    function validString(val, maxLen) {
-      return val is string && val.size() <= maxLen;
-    }
-
-    // ===============================================================
-    // Domain Validators
-    // ===============================================================
-
-    function isValidUser(data) {
-      return hasRequiredFields(['email', 'subscription_plan']) &&
-             data.email is string && isValidEmail(data.email) &&
-             data.subscription_plan in ['free', 'premium', 'trial'] &&
-             validString(data.email, 256);
-    }
-
-    function isValidMission(data) {
-      return validString(data.title, 200) &&
-             (!('category' in data) || validString(data.category, 50)) &&
-             (!('status' in data) || data.status in ['pending', 'completed', 'overdue']);
-    }
-
-    // ===============================================================
-    // Rules
-    // ===============================================================
-
-    match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      
-      // Only allow user to create their own profile with 'user' role
-      allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
-                      (!('role' in request.resource.data) || request.resource.data.role == 'user');
-      
-      // Only allow user to update their own profile, but NOT their role (unless admin)
-      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && 
-                        request.resource.data.email == resource.data.email &&
-                        (request.resource.data.role == resource.data.role || !('role' in request.resource.data))) || 
-                      isAdmin();
-
-      match /tasks/{taskId} {
-        allow read, delete: if isOwner(userId) || isAdmin();
-        allow create, update: if (isOwner(userId) && isValidMission(request.resource.data)) || isAdmin();
-      }
-
-      match /habits/{habitId} {
-        allow read, write: if isOwner(userId) || isAdmin();
-      }
-
-      match /goals/{goalId} {
-        allow read, write: if isOwner(userId) || isAdmin();
-      }
-
-      match /ai_insights/{insightId} {
-        allow read, write: if isOwner(userId) || isAdmin();
-      }
-
-      match /daily_scores/{date} {
-        allow read, write: if isOwner(userId) || isAdmin();
-      }
-
-      match /motivation/{docId} {
-        allow read, write: if isOwner(userId) || isAdmin();
-      }
-
-      match /reminder_logs/{logId} {
-        allow read, write: if isOwner(userId) || isAdmin();
-      }
-    }
-
-    // Default deny
+    // 0. Default Deny
     match /{document=**} {
       allow read, write: if false;
+    }
+
+    // --- SHARED HELPERS ---
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isEmailVerified() { return request.auth.token.email_verified == true; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isUnchanged(field) { return incoming()[field] == existing()[field]; }
+
+    // --- ENTITY VALIDATIONS ---
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'created_at'])
+        && data.email is string && data.email.size() <= 256
+        && (data.get('role', 'user') == 'user') // Users can't self-promote
+        && data.created_at is string; // Or timestamp if using serverTimestamp
+    }
+
+    function isValidTask(data) {
+      return data.keys().hasAll(['title', 'status', 'created_at'])
+        && data.title is string && data.title.size() <= 200
+        && data.status in ['pending', 'completed', 'overdue']
+        && data.priority in ['low', 'medium', 'high']
+        && data.created_at is string;
+    }
+
+    function isValidHabit(data) {
+      return data.keys().hasAll(['title', 'created_at'])
+        && data.title is string && data.title.size() <= 200
+        && data.created_at is string;
+    }
+
+    // --- COLLECTION RULES ---
+
+    // /users/{userId}
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+      
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming());
+      
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUser(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['lifeScore', 'streak', 'onboardingComplete', 'wakeTime', 'directive', 'subscription_plan'])
+        && isUnchanged('email')
+        && isUnchanged('role')
+        && isUnchanged('created_at')
+      );
+
+      // /users/{userId}/tasks/{taskId}
+      match /tasks/{taskId} {
+        allow get, list: if isOwner(userId) && isValidId(userId);
+        
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(taskId) && isValidTask(incoming());
+        
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(taskId) && isValidTask(incoming()) && (
+          // Action: Complete
+          (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'completed_at']) && incoming().status == 'completed') ||
+          // Action: Edit
+          (incoming().status == 'pending' && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'priority', 'deadline', 'duration', 'category', 'impact', 'urgency', 'importance', 'is_habit']))
+        );
+        
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(taskId);
+      }
+
+      // /users/{userId}/habits/{habitId}
+      match /habits/{habitId} {
+        allow get, list: if isOwner(userId) && isValidId(userId);
+        
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(habitId) && isValidHabit(incoming());
+        
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(habitId) && isValidHabit(incoming()) && (
+          // Action: Toggle completion
+          incoming().diff(existing()).affectedKeys().hasOnly(['last_completed_at', 'current_count', 'streak']) ||
+          // Action: Edit
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'frequency', 'goal_count', 'category'])
+        );
+        
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(habitId);
+      }
+
+      // /users/{userId}/motivation/state
+      match /motivation/state {
+        allow get: if isOwner(userId) && isValidId(userId);
+        allow write: if isOwner(userId) && isValidId(userId);
+      }
+
+      // /users/{userId}/daily_scores/{date}
+      match /daily_scores/{date} {
+        allow get, list: if isOwner(userId) && isValidId(userId);
+        allow create, update: if isOwner(userId) && isValidId(userId);
+      }
+
+      // /users/{userId}/reminder_logs/{logId}
+      match /reminder_logs/{logId} {
+        allow get, list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(logId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(logId) && incoming().diff(existing()).affectedKeys().hasOnly(['action_taken']);
+      }
+
+      // /users/{userId}/payments/{paymentId}
+      match /payments/{paymentId} {
+        allow get, list: if isOwner(userId) && isValidId(userId);
+        allow write: if isOwner(userId) && isValidId(userId) && isValidId(paymentId);
+      }
+    }
+    
+    // Connection test doc
+    match /_connection_test_/init {
+      allow get: if isSignedIn();
     }
   }
 }

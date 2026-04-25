@@ -61,15 +61,26 @@ export const MissionCard: React.FC<MissionCardProps> = ({ mission, theme, handle
               </button>
             </div>
           ) : (
-            <motion.button 
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={(e) => { e.stopPropagation(); setDeleteState('confirming'); }}
-              className="size-8 rounded-lg flex items-center justify-center transition-all text-text_secondary hover:text-danger hover:bg-danger/10 opacity-40 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-              title="Delete Mission"
-            >
-              <Trash2 size={16} />
-            </motion.button>
+            <div className="flex items-center gap-2 opacity-40 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
+              <motion.button 
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={(e) => { e.stopPropagation(); handleAction('EDIT_TASK', mission); }}
+                className="size-8 rounded-lg flex items-center justify-center transition-all text-text_secondary hover:text-primary hover:bg-primary/10"
+                title="Edit Mission"
+              >
+                <Target size={16} />
+              </motion.button>
+              <motion.button 
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={(e) => { e.stopPropagation(); setDeleteState('confirming'); }}
+                className="size-8 rounded-lg flex items-center justify-center transition-all text-text_secondary hover:text-danger hover:bg-danger/10"
+                title="Delete Mission"
+              >
+                <Trash2 size={16} />
+              </motion.button>
+            </div>
           )}
           <div className={`size-10 rounded-xl flex items-center justify-center text-text_secondary bg-surface border border-border`}>
             {mission.category === 'health' ? <Heart size={20} /> : mission.category === 'work' ? <Briefcase size={20} /> : <Target size={20} />}

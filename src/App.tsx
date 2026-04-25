@@ -5,8 +5,10 @@ import { useAuth } from './context/AuthContext';
 import { MinimalTheme } from './components/MinimalTheme';
 import { GamifiedTheme } from './components/GamifiedTheme';
 import { EliteTheme } from './components/EliteTheme';
+import { FocusMode } from './components/focus/FocusMode';
 import { Settings, Undo2 } from 'lucide-react';
 import { OnboardingOverlay } from './components/onboarding/OnboardingOverlay';
+import { ErrorBanner } from './components/ui/ErrorBanner';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const UndoToast = () => {
@@ -91,6 +93,8 @@ const AppContent = () => {
     directive: 'focus'
   });
 
+  const { currentFocusTask, handleAction } = useAppContext();
+
   const completeOnboarding = async () => {
     if (user) {
       await updateUserProfile({
@@ -102,6 +106,24 @@ const AppContent = () => {
   };
 
   const renderTheme = () => {
+    if (currentFocusTask) {
+      return (
+        <AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[150]"
+          >
+            <FocusMode 
+              task={currentFocusTask} 
+              onClose={() => handleAction('STOP_FOCUS')} 
+            />
+          </motion.div>
+        </AnimatePresence>
+      );
+    }
+
     switch (theme.id) {
       case 'minimal':
         return <MinimalTheme />;
@@ -116,6 +138,7 @@ const AppContent = () => {
 
   return (
     <>
+      <ErrorBanner />
       {renderTheme()}
       <AnimatePresence>
         <UndoToast />
@@ -136,13 +159,9 @@ const AppContent = () => {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AppProvider>
-        <div className="relative w-full max-w-md mx-auto h-[100dvh] overflow-hidden bg-black shadow-2xl sm:rounded-[40px] sm:h-[850px] sm:my-8 sm:border-8 sm:border-gray-900">
-          <ThemeSwitcher />
-          <AppContent />
-        </div>
-      </AppProvider>
-    </ThemeProvider>
+    <div className="relative w-full max-w-md mx-auto h-[100dvh] overflow-hidden bg-black shadow-2xl sm:rounded-[40px] sm:h-[850px] sm:my-8 sm:border-8 sm:border-gray-900">
+      <ThemeSwitcher />
+      <AppContent />
+    </div>
   );
 }
