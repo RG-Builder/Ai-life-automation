@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from "../middleware/auth";
 import { rateLimit } from 'express-rate-limit';
 import { GoogleGenAI } from "@google/genai";
 import { API_CONFIG } from "../../config/api.config";
+import { getBackendAiConfig } from "../config/ai.config";
 
 const router = express.Router();
 
@@ -16,13 +17,8 @@ const aiLimiter = rateLimit({
 });
 
 const handle_ai_request = async (user: any, prompt: string, taskType: 'simple' | 'complex' = 'simple', systemInstruction: string = "") => {
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-
-  if (!GEMINI_API_KEY) {
-    throw new Error("AI service configuration error: GEMINI_API_KEY is missing.");
-  }
-
-  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  const aiConfig = getBackendAiConfig();
+  const ai = new GoogleGenAI({ apiKey: aiConfig.apiKey });
   const fullSystemInstruction = `${API_CONFIG.AI.PROMPTS.LIFE_PILOT_SYSTEM_PROMPT}\n${systemInstruction}`;
 
   // 1. Model Routing Logic
@@ -34,7 +30,7 @@ const handle_ai_request = async (user: any, prompt: string, taskType: 'simple' |
                          prompt.toLowerCase().includes('optimize') ||
                          prompt.toLowerCase().includes('behavior');
   
-  const selectedModel = isThinkingTask ? API_CONFIG.AI.MODELS.PRIMARY : API_CONFIG.AI.MODELS.FAST;
+  const selectedModel = isThinkingTask ? aiConfig.models.primary : aiConfig.models.fast;
 
   const callAI = async (model: string, retryCount = 0): Promise<string> => {
     try {
@@ -62,16 +58,16 @@ const handle_ai_request = async (user: any, prompt: string, taskType: 'simple' |
 
   const callAIWithFallback = async () => {
     try {
-      console.log(`Routing to ${selectedModel === API_CONFIG.AI.MODELS.PRIMARY ? 'THINKING' : 'FAST'} model for task: ${taskType}`);
+      console.log(`Routing to ${selectedModel === aiConfig.models.primary ? 'THINKING' : 'FAST'} model for task: ${taskType}`);
       const text = await callAI(selectedModel);
       return { text, model: selectedModel };
     } catch (err: unknown) {
       // FALLBACK SYSTEM (MANDATORY)
-      if (selectedModel === API_CONFIG.AI.MODELS.PRIMARY) {
-        console.warn(`THINKING model failed, switching to FAST model: ${API_CONFIG.AI.MODELS.FAST}`);
+      if (selectedModel === aiConfig.models.primary) {
+        console.warn(`THINKING model failed, switching to FAST model: ${aiConfig.models.fast}`);
         try {
-          const text = await callAI(API_CONFIG.AI.MODELS.FAST);
-          return { text, model: API_CONFIG.AI.MODELS.FAST };
+          const text = await callAI(aiConfig.models.fast);
+          return { text, model: aiConfig.models.fast };
         } catch (fastErr: unknown) {
           console.error("FAST model also failed after fallback.");
           return { text: API_CONFIG.AI.FALLBACK_STATIC, model: "static-fallback" };

@@ -1,6 +1,6 @@
 # 🚀 LifePilot AI Deployment Guide
 
-This guide provides step-by-step instructions to deploy the LifePilot AI application (React + Express + Firebase + OpenRouter) to **Railway**, which is highly recommended for full-stack Node.js applications.
+This guide provides step-by-step instructions to deploy the LifePilot AI application (React + Express + Firebase + Gemini Direct) to **Railway**, which is highly recommended for full-stack Node.js applications.
 
 ---
 
@@ -26,9 +26,10 @@ Copy these into the Railway **Variables** tab. Do NOT commit these to GitHub.
 | Variable | Description | How to Obtain |
 | :--- | :--- | :--- |
 | `NODE_ENV` | Set to `production` | Manual entry |
-| `OPENROUTER_API_KEY` | Your OpenRouter API Key | [OpenRouter Keys](https://openrouter.ai/keys) |
-| `OPENROUTER_PRIMARY_MODEL` | `google/gemini-2.0-flash-exp` | OpenRouter Docs |
-| `OPENROUTER_FAST_MODEL` | `google/gemini-1.5-flash` | OpenRouter Docs |
+| `AI_PROVIDER` | `gemini-direct` | Manual entry |
+| `GEMINI_API_KEY` | Your Gemini API Key | [Google AI Studio](https://aistudio.google.com/apikey) |
+| `GEMINI_PRIMARY_MODEL` | `gemini-2.0-flash` | Gemini API docs |
+| `GEMINI_FAST_MODEL` | `gemini-2.0-flash` | Gemini API docs |
 | `FIREBASE_SERVICE_ACCOUNT` | Minified JSON string of your SA key | Firebase Console -> Project Settings -> Service Accounts |
 | `FIREBASE_DATABASE_ID` | Your Firestore Database ID | Firebase Console -> Firestore |
 | `APP_URL` | Your Railway App URL (e.g., `https://lifepilot.up.railway.app`) | Provided by Railway after deploy |
@@ -92,12 +93,12 @@ curl http://localhost:3000/api/health
 
 - **CORS Errors**: Ensure `APP_URL` in environment variables matches your actual domain.
 - **Firebase 403**: Check if your Service Account has "Cloud Datastore User" or "Editor" permissions.
-- **OpenRouter 401**: Verify your API key has enough credits/balance.
+- **Gemini 401/403**: Verify your Gemini API key is valid and has Gemini API access enabled.
 - **Vite Build Fails**: Ensure all `devDependencies` are installed (Railway does this by default).
 
 ---
 
-## 7. Cost Optimization Tips (OpenRouter)
-- **Use Fast Models**: Default to `gemini-1.5-flash` for simple tasks.
+## 7. Cost Optimization Tips (Gemini Direct)
+- **Use Fast Models**: Keep simple tasks on `gemini-2.0-flash`.
 - **Caching**: The app already has Firestore caching enabled—monitor the `ai_cache` collection to see savings.
 - **Context Window**: Keep system prompts concise to save input tokens.

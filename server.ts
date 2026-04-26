@@ -40,6 +40,7 @@ import compression from "compression";
 import { rateLimit } from 'express-rate-limit';
 import axios from "axios";
 import validator from "validator";
+import { AI_REQUIRED_ENV_VARS, getBackendAiConfig, logBackendAiSelection } from "./src/server/config/ai.config";
 
 export interface AuthUser {
   id: string;
@@ -59,21 +60,26 @@ import { getFirestore } from "firebase-admin/firestore";
 dotenv.config();
 
 // Environment Variable Validation
-const requiredEnvVars = [
-  'JWT_SECRET',
-  'OPENROUTER_API_KEY'
-];
+const requiredEnvVars = ['JWT_SECRET', ...AI_REQUIRED_ENV_VARS];
 
-if (process.env.NODE_ENV === 'production') {
-  const missingVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
-  if (missingVars.length > 0) {
-    console.error(`❌ FATAL ERROR: Missing required environment variables in production: ${missingVars.join(', ')}`);
-    process.exit(1);
-  }
-  if (process.env.JWT_SECRET === 'dev_secret_only') {
-    console.error(`❌ FATAL ERROR: Using development JWT_SECRET in production!`);
-    process.exit(1);
-  }
+const missingVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
+if (missingVars.length > 0) {
+  console.error(`❌ FATAL ERROR: Missing required environment variables: ${missingVars.join(', ')}`);
+  process.exit(1);
+}
+
+if (process.env.NODE_ENV === 'production' && process.env.JWT_SECRET === 'dev_secret_only') {
+  console.error(`❌ FATAL ERROR: Using development JWT_SECRET in production!`);
+  process.exit(1);
+}
+
+try {
+  // Ensure AI provider contract exactly matches route requirements and fail fast.
+  getBackendAiConfig();
+  logBackendAiSelection();
+} catch (error: unknown) {
+  console.error(`❌ FATAL ERROR: ${(error as Error).message}`);
+  process.exit(1);
 }
 
   // Initialize Firebase Admin
