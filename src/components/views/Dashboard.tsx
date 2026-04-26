@@ -6,7 +6,6 @@ import { MissionCard } from '../missions/MissionCard';
 import { Mission, MotivationState, Analytics, User } from '../../types/index';
 import { isToday, toDate } from '../../lib/utils';
 import { useAppContext } from '../../context/AppContext';
-import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../theme';
 import { MOTIVATION_MESSAGES } from '../../services/motivationService';
 
@@ -18,14 +17,11 @@ export const Dashboard: React.FC = () => {
     motivationState, 
     dailyScore, 
     handleAction,
-    generateDayPlan,
     generateAiInsights,
     setActiveTab,
-    isLoading,
     aiInsight,
     streak
   } = useAppContext();
-  const { user } = useAuth();
   const { theme } = useTheme();
 
   const nextAction = missions.find(m => m.status === 'pending') || null;
@@ -33,7 +29,7 @@ export const Dashboard: React.FC = () => {
     MOTIVATION_MESSAGES.ESCALATION.find(e => e.level === motivationState.escalation_level)?.text || MOTIVATION_MESSAGES.REWARDS[0]
     : MOTIVATION_MESSAGES.REWARDS[Math.floor(Math.random() * MOTIVATION_MESSAGES.REWARDS.length)];
   const selfAwareness = { focusTimeMinutes: missions.filter(m => m.status === 'completed').reduce((acc, m) => acc + (m.duration || 0), 0) };
-  const [showNotifications, setShowNotifications] = useState(false);
+  const [, setShowNotifications] = useState(false);
 
   const todayMissions = missions.filter(m => 
     isToday(m.created_at) || 
@@ -41,7 +37,6 @@ export const Dashboard: React.FC = () => {
     (m.completed_at && isToday(m.completed_at))
   );
   const completedToday = todayMissions.filter(m => m.status === 'completed' && m.completed_at && isToday(m.completed_at)).length;
-  const totalToday = todayMissions.length;
 
   const getConsistencyPulse = () => {
     // Generate pulse data based on last 12 days of completed missions

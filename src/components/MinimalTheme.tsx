@@ -44,11 +44,12 @@ import { Dashboard } from './views/Dashboard';
 
 export const MinimalTheme: React.FC = () => {
   const { error, setError, activeTab, setActiveTab } = useAppContext();
+  const { firebaseUser } = useAuth();
   const { theme } = useTheme();
 
   return (
     <div 
-      className="relative min-h-screen font-sans selection:bg-gray-200 flex flex-col overflow-hidden"
+      className="relative min-h-screen font-sans selection:bg-gray-200 flex flex-col"
       style={{ backgroundColor: theme.colors.background, color: theme.colors.text_primary }}
     >
       <div className="pointer-events-none absolute inset-0 opacity-80">
@@ -79,11 +80,10 @@ export const MinimalTheme: React.FC = () => {
 
       {/* Header */}
       <header 
-        className="px-6 pt-12 pb-4 flex justify-between items-center sticky top-0 backdrop-blur-xl z-50 border-b border-border/40"
-        style={{ backgroundColor: `${theme.colors.background}B8` }}
+        className="px-6 pt-12 pb-4 flex justify-between items-center sticky top-0 backdrop-blur-xl z-50 border-b border-border/40 bg-background/80"
       >
         <div className="flex items-center gap-3">
-          <img src={useAuth().firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
+          <img src={firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
           <h1 className="font-bold text-lg leading-tight tracking-tight">
             {activeTab === 'home' ? theme.wording.navigation.home : 
              activeTab === 'tasks' ? theme.wording.navigation.tasks :
@@ -93,7 +93,7 @@ export const MinimalTheme: React.FC = () => {
           </h1>
         </div>
         <div className="flex items-center gap-3">
-          {!useAuth().firebaseUser && (
+          {!firebaseUser && (
             <div className="bg-yellow-100 text-yellow-700 text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">
               Demo Mode
             </div>
@@ -120,8 +120,7 @@ export const MinimalTheme: React.FC = () => {
 
       {/* Bottom Navigation */}
       <nav 
-        className="fixed bottom-0 left-0 right-0 border-t border-border/40 pb-safe pt-3 px-4 md:px-6 z-50 backdrop-blur-xl"
-        style={{ backgroundColor: `${theme.colors.background}D9` }}
+        className="fixed bottom-0 left-0 right-0 border-t border-border/40 pb-safe pt-3 px-4 md:px-6 z-50 backdrop-blur-xl bg-background/85"
       >
         <div className="flex justify-between items-center mb-4 max-w-md mx-auto overflow-x-auto no-scrollbar gap-1 rounded-2xl p-2 bg-surface/80 border border-border/50 shadow-xl">
           <NavItem id="home" icon={<Target size={22} />} label={theme.wording.navigation.home} active={activeTab === 'home'} onClick={() => setActiveTab('home')} />
