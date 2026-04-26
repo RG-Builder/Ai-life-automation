@@ -1,33 +1,27 @@
-import axios from 'axios';
 import dotenv from 'dotenv';
+import { GoogleGenAI } from '@google/genai';
 
 dotenv.config();
 
-const testOpenRouter = async () => {
-  const key = process.env.OPENROUTER_API_KEY;
+const testGeminiDirect = async () => {
+  const key = process.env.GEMINI_API_KEY;
+  const model = process.env.GEMINI_FAST_MODEL || process.env.GEMINI_PRIMARY_MODEL || 'gemini-2.0-flash';
+
   if (!key) {
-    console.error("❌ OPENROUTER_API_KEY is missing");
+    console.error('❌ GEMINI_API_KEY is missing');
     return;
   }
 
   try {
-    const response = await axios.post(
-      'https://openrouter.ai/api/v1/chat/completions',
-      {
-        model: 'openai/gpt-3.5-turbo',
-        messages: [{ role: 'user', content: 'hi' }]
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${key}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-    console.log("✅ OpenRouter Response Status:", response.status);
+    const ai = new GoogleGenAI({ apiKey: key });
+    const response = await ai.models.generateContent({
+      model,
+      contents: 'hi',
+    });
+    console.log('✅ Gemini Response:', response.text);
   } catch (err: any) {
-    console.error("❌ OpenRouter Test Failed:", err.response?.status, err.response?.data || err.message);
+    console.error('❌ Gemini Test Failed:', err?.message || err);
   }
 };
 
-testOpenRouter();
+testGeminiDirect();

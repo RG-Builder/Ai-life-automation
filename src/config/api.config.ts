@@ -1,11 +1,14 @@
+const UI_PROVIDER = (import.meta.env.VITE_AI_PROVIDER || 'gemini-direct').trim().toLowerCase();
+
 export const API_CONFIG = {
   ENDPOINTS: {
     GENERATE_AI: '/api/ai/generate',
   },
   AI: {
+    PROVIDER: UI_PROVIDER,
     MODELS: {
-      PRIMARY: "gemini-2.0-flash",
-      FAST: "gemini-2.0-flash",
+      PRIMARY: import.meta.env.VITE_GEMINI_PRIMARY_MODEL || 'gemini-2.0-flash',
+      FAST: import.meta.env.VITE_GEMINI_FAST_MODEL || 'gemini-2.0-flash',
     },
     FALLBACK_STATIC: "Next Action: Focus on your current priority.\n\nInsight: AI systems are temporarily limited, but your productivity doesn't have to be.",
     PROMPTS: {
@@ -69,15 +72,15 @@ IMPORTANT:
       MAX_ATTEMPTS: 1,
     },
     RATE_LIMIT: {
-      WINDOW_MS: 15 * 60 * 1000, // 15 minutes
+      WINDOW_MS: 15 * 60 * 1000,
       MAX_REQUESTS: 10,
       MESSAGE: "Too many AI requests. Please try again later.",
     }
   },
   SCHEDULING: {
-    START_TIME_MINUTES: 9 * 60, // 9:00 AM
+    START_TIME_MINUTES: 9 * 60,
     DEFAULT_TASK_DURATION: 30,
     BREAK_DURATION: 15,
-    END_TIME_MINUTES: 17 * 60, // 5:00 PM
+    END_TIME_MINUTES: 17 * 60,
   }
 } as const;
