@@ -1,8 +1,15 @@
 export type AiProvider = 'gemini-direct';
 
+export const AI_REQUIRED_ENV_VARS = [
+  'AI_PROVIDER',
+  'GEMINI_API_KEY',
+  'GEMINI_PRIMARY_MODEL',
+  'GEMINI_FAST_MODEL',
+] as const;
+
 const SUPPORTED_PROVIDER: AiProvider = 'gemini-direct';
 
-const getRequiredEnv = (name: string): string => {
+const getRequiredEnv = (name: (typeof AI_REQUIRED_ENV_VARS)[number]): string => {
   const value = process.env[name]?.trim();
   if (!value) {
     throw new Error(`Missing required AI environment variable: ${name}`);
@@ -29,7 +36,7 @@ let cachedConfig: BackendAiConfig | null = null;
 export const getBackendAiConfig = (): BackendAiConfig => {
   if (cachedConfig) return cachedConfig;
 
-  const providerFromEnv = (process.env.AI_PROVIDER || SUPPORTED_PROVIDER).trim().toLowerCase();
+  const providerFromEnv = getRequiredEnv('AI_PROVIDER').toLowerCase();
   if (providerFromEnv !== SUPPORTED_PROVIDER) {
     throw new Error(`Unsupported AI_PROVIDER: ${providerFromEnv}. Supported provider: ${SUPPORTED_PROVIDER}`);
   }

@@ -40,7 +40,7 @@ import compression from "compression";
 import { rateLimit } from 'express-rate-limit';
 import axios from "axios";
 import validator from "validator";
-import { getBackendAiConfig, logBackendAiSelection } from "./src/server/config/ai.config";
+import { AI_REQUIRED_ENV_VARS, getBackendAiConfig, logBackendAiSelection } from "./src/server/config/ai.config";
 
 export interface AuthUser {
   id: string;
@@ -60,15 +60,9 @@ import { getFirestore } from "firebase-admin/firestore";
 dotenv.config();
 
 // Environment Variable Validation
-const requiredEnvVars = [
-  'JWT_SECRET',
-  'AI_PROVIDER',
-  'GEMINI_API_KEY',
-  'GEMINI_PRIMARY_MODEL',
-  'GEMINI_FAST_MODEL'
-];
+const requiredEnvVars = ['JWT_SECRET', ...AI_REQUIRED_ENV_VARS];
 
-const missingVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+const missingVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
 if (missingVars.length > 0) {
   console.error(`❌ FATAL ERROR: Missing required environment variables: ${missingVars.join(', ')}`);
   process.exit(1);
