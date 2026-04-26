@@ -79,7 +79,7 @@ export const Dashboard: React.FC = () => {
       className="space-y-6 md:space-y-8 pb-32"
     >
       {/* Header */}
-      <motion.div variants={theme.motion.variants.item} className="flex items-center justify-between px-0">
+      <motion.div variants={theme.motion.variants.item} className="flex items-center justify-between px-1">
         <div>
           <h1 className={`text-2xl md:text-3xl font-black tracking-tighter text-text_primary`}>
             {theme.wording.dashboard.split(' ')[0]} <span className="text-primary">{theme.wording.dashboard.split(' ')[1] || ''}</span>
@@ -107,7 +107,8 @@ export const Dashboard: React.FC = () => {
       </motion.div>
 
       {/* Life State Engine */}
-      <motion.div variants={theme.motion.variants.item}>
+      <motion.div variants={theme.motion.variants.item} className="relative overflow-hidden rounded-3xl">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/12 via-transparent to-secondary/10 pointer-events-none" />
         <LifeStateEngine 
           missions={missions}
           dailyScore={dailyScore}
@@ -133,7 +134,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <motion.div 
             whileHover={theme.motion.hover}
-            className="stitch-card p-4 bg-surface border-l-4 border-primary"
+            className="stitch-card p-4 bg-surface border-l-4 border-primary shadow-lg"
           >
             <p className="text-sm font-bold text-text_primary leading-relaxed">
               {aiInsight || motivationQuote}
@@ -171,7 +172,7 @@ export const Dashboard: React.FC = () => {
             whileHover={theme.motion.hover}
             whileTap={theme.motion.tap}
             onClick={() => setActiveTab('tasks')}
-            className="stitch-card p-4 md:p-5 flex flex-col items-center gap-3 hover:bg-surface transition-all"
+            className="stitch-card p-4 md:p-5 flex flex-col items-center gap-3 hover:bg-surface transition-all hover:shadow-xl"
           >
             <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
               <LayoutGrid size={20} />
@@ -182,7 +183,7 @@ export const Dashboard: React.FC = () => {
             whileHover={theme.motion.hover}
             whileTap={theme.motion.tap}
             onClick={() => setActiveTab('schedule')}
-            className="stitch-card p-4 md:p-5 flex flex-col items-center gap-3 hover:bg-surface transition-all"
+            className="stitch-card p-4 md:p-5 flex flex-col items-center gap-3 hover:bg-surface transition-all hover:shadow-xl"
           >
             <div className="size-10 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary">
               <Activity size={20} />

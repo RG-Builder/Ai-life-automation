@@ -48,9 +48,15 @@ export const MinimalTheme: React.FC = () => {
 
   return (
     <div 
-      className="min-h-screen font-sans selection:bg-gray-200 flex flex-col"
+      className="relative min-h-screen font-sans selection:bg-gray-200 flex flex-col overflow-hidden"
       style={{ backgroundColor: theme.colors.background, color: theme.colors.text_primary }}
     >
+      <div className="pointer-events-none absolute inset-0 opacity-80">
+        <div className="absolute -top-28 -left-20 h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
+        <div className="absolute top-24 -right-16 h-64 w-64 rounded-full bg-secondary/15 blur-3xl" />
+        <div className="absolute bottom-16 left-1/3 h-52 w-52 rounded-full bg-accent/10 blur-3xl" />
+      </div>
+
       {/* Error Toast */}
       <AnimatePresence>
         {error && (
@@ -73,8 +79,8 @@ export const MinimalTheme: React.FC = () => {
 
       {/* Header */}
       <header 
-        className="px-6 pt-12 pb-6 flex justify-between items-center sticky top-0 backdrop-blur-md z-50"
-        style={{ backgroundColor: `${theme.colors.background}CC` }} // CC is 80% opacity
+        className="px-6 pt-12 pb-4 flex justify-between items-center sticky top-0 backdrop-blur-xl z-50 border-b border-border/40"
+        style={{ backgroundColor: `${theme.colors.background}B8` }}
       >
         <div className="flex items-center gap-3">
           <img src={useAuth().firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
@@ -102,7 +108,7 @@ export const MinimalTheme: React.FC = () => {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto px-6 pb-32">
+      <main className="relative z-10 flex-1 overflow-y-auto px-4 md:px-6 pb-32 pt-4">
         <AnimatePresence mode="wait">
           {activeTab === 'home' && <Dashboard key="home" />}
           {activeTab === 'tasks' && <MissionMatrix key="tasks" />}
@@ -114,10 +120,10 @@ export const MinimalTheme: React.FC = () => {
 
       {/* Bottom Navigation */}
       <nav 
-        className="fixed bottom-0 left-0 right-0 border-t border-gray-100 pb-safe pt-3 px-6 z-50"
-        style={{ backgroundColor: theme.colors.background }}
+        className="fixed bottom-0 left-0 right-0 border-t border-border/40 pb-safe pt-3 px-4 md:px-6 z-50 backdrop-blur-xl"
+        style={{ backgroundColor: `${theme.colors.background}D9` }}
       >
-        <div className="flex justify-between items-center mb-4 max-w-sm mx-auto overflow-x-auto no-scrollbar gap-1">
+        <div className="flex justify-between items-center mb-4 max-w-md mx-auto overflow-x-auto no-scrollbar gap-1 rounded-2xl p-2 bg-surface/80 border border-border/50 shadow-xl">
           <NavItem id="home" icon={<Target size={22} />} label={theme.wording.navigation.home} active={activeTab === 'home'} onClick={() => setActiveTab('home')} />
           <NavItem id="tasks" icon={<ClipboardList size={22} />} label={theme.wording.navigation.tasks} active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} />
           <NavItem id="habits" icon={<RefreshCw size={22} />} label={theme.wording.navigation.habits} active={activeTab === 'habits'} onClick={() => setActiveTab('habits')} />
