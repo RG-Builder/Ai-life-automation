@@ -26,6 +26,21 @@ export const MinimalTheme: React.FC = () => {
   const { error, setError, activeTab, setActiveTab } = useAppContext();
   const { firebaseUser } = useAuth();
   const { theme } = useTheme();
+  const tabTitle = theme.wording.navigation[activeTab as keyof typeof theme.wording.navigation] || theme.wording.navigation.home;
+  const viewsByTab = {
+    home: <Dashboard key="home" />,
+    tasks: <MissionMatrix key="tasks" />,
+    habits: <HabitsView key="habits" />,
+    schedule: <TimelineMatrix key="schedule" />,
+    analytics: <SelfAwareness key="analytics" />
+  } as const;
+  const navItems = [
+    { key: 'home', icon: <Target size={22} />, label: theme.wording.navigation.home },
+    { key: 'tasks', icon: <ClipboardList size={22} />, label: theme.wording.navigation.tasks },
+    { key: 'habits', icon: <RefreshCw size={22} />, label: theme.wording.navigation.habits },
+    { key: 'schedule', icon: <Settings size={22} />, label: theme.wording.navigation.schedule },
+    { key: 'analytics', icon: <BarChart2 size={22} />, label: theme.wording.navigation.analytics }
+  ] as const;
 
   return (
     <div 
@@ -64,13 +79,7 @@ export const MinimalTheme: React.FC = () => {
       >
         <div className="flex items-center gap-3">
           <img src={firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
-          <h1 className="font-bold text-lg leading-tight tracking-tight">
-            {activeTab === 'home' ? theme.wording.navigation.home : 
-             activeTab === 'tasks' ? theme.wording.navigation.tasks :
-             activeTab === 'habits' ? theme.wording.navigation.habits :
-             activeTab === 'schedule' ? theme.wording.navigation.schedule :
-             theme.wording.navigation.analytics}
-          </h1>
+          <h1 className="font-bold text-lg leading-tight tracking-tight">{tabTitle}</h1>
         </div>
         <div className="flex items-center gap-3">
           {!firebaseUser && (
@@ -89,13 +98,7 @@ export const MinimalTheme: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="relative z-10 flex-1 overflow-y-auto px-4 md:px-6 pb-32 pt-4">
-        <AnimatePresence mode="wait">
-          {activeTab === 'home' && <Dashboard key="home" />}
-          {activeTab === 'tasks' && <MissionMatrix key="tasks" />}
-          {activeTab === 'habits' && <HabitsView key="habits" />}
-          {activeTab === 'schedule' && <TimelineMatrix key="schedule" />}
-          {activeTab === 'analytics' && <SelfAwareness key="analytics" />}
-        </AnimatePresence>
+        <AnimatePresence mode="wait">{viewsByTab[activeTab as keyof typeof viewsByTab]}</AnimatePresence>
       </main>
 
       {/* Bottom Navigation */}
@@ -103,11 +106,15 @@ export const MinimalTheme: React.FC = () => {
         className="fixed bottom-0 left-0 right-0 border-t border-border/40 pb-safe pt-3 px-4 md:px-6 z-50 backdrop-blur-xl bg-background/85"
       >
         <div className="flex justify-between items-center mb-4 max-w-md mx-auto overflow-x-auto no-scrollbar gap-1 rounded-2xl p-2 bg-surface/80 border border-border/50 shadow-xl">
-          <NavItem icon={<Target size={22} />} label={theme.wording.navigation.home} active={activeTab === 'home'} onClick={() => setActiveTab('home')} />
-          <NavItem icon={<ClipboardList size={22} />} label={theme.wording.navigation.tasks} active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} />
-          <NavItem icon={<RefreshCw size={22} />} label={theme.wording.navigation.habits} active={activeTab === 'habits'} onClick={() => setActiveTab('habits')} />
-          <NavItem icon={<Settings size={22} />} label={theme.wording.navigation.schedule} active={activeTab === 'schedule'} onClick={() => setActiveTab('schedule')} />
-          <NavItem icon={<BarChart2 size={22} />} label={theme.wording.navigation.analytics} active={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')} />
+          {navItems.map((item) => (
+            <NavItem
+              key={item.key}
+              icon={item.icon}
+              label={item.label}
+              active={activeTab === item.key}
+              onClick={() => setActiveTab(item.key)}
+            />
+          ))}
         </div>
       </nav>
     </div>
