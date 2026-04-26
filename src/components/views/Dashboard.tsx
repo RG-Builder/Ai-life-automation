@@ -6,7 +6,6 @@ import { MissionCard } from '../missions/MissionCard';
 import { Mission, MotivationState, Analytics, User } from '../../types/index';
 import { isToday, toDate } from '../../lib/utils';
 import { useAppContext } from '../../context/AppContext';
-import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../theme';
 import { MOTIVATION_MESSAGES } from '../../services/motivationService';
 
@@ -18,14 +17,11 @@ export const Dashboard: React.FC = () => {
     motivationState, 
     dailyScore, 
     handleAction,
-    generateDayPlan,
     generateAiInsights,
     setActiveTab,
-    isLoading,
     aiInsight,
     streak
   } = useAppContext();
-  const { user } = useAuth();
   const { theme } = useTheme();
 
   const nextAction = missions.find(m => m.status === 'pending') || null;
@@ -33,7 +29,7 @@ export const Dashboard: React.FC = () => {
     MOTIVATION_MESSAGES.ESCALATION.find(e => e.level === motivationState.escalation_level)?.text || MOTIVATION_MESSAGES.REWARDS[0]
     : MOTIVATION_MESSAGES.REWARDS[Math.floor(Math.random() * MOTIVATION_MESSAGES.REWARDS.length)];
   const selfAwareness = { focusTimeMinutes: missions.filter(m => m.status === 'completed').reduce((acc, m) => acc + (m.duration || 0), 0) };
-  const [showNotifications, setShowNotifications] = useState(false);
+  const [, setShowNotifications] = useState(false);
 
   const todayMissions = missions.filter(m => 
     isToday(m.created_at) || 
@@ -41,7 +37,6 @@ export const Dashboard: React.FC = () => {
     (m.completed_at && isToday(m.completed_at))
   );
   const completedToday = todayMissions.filter(m => m.status === 'completed' && m.completed_at && isToday(m.completed_at)).length;
-  const totalToday = todayMissions.length;
 
   const getConsistencyPulse = () => {
     // Generate pulse data based on last 12 days of completed missions
@@ -79,7 +74,7 @@ export const Dashboard: React.FC = () => {
       className="space-y-6 md:space-y-8 pb-32"
     >
       {/* Header */}
-      <motion.div variants={theme.motion.variants.item} className="flex items-center justify-between px-0">
+      <motion.div variants={theme.motion.variants.item} className="flex items-center justify-between px-1">
         <div>
           <h1 className={`text-2xl md:text-3xl font-black tracking-tighter text-text_primary`}>
             {theme.wording.dashboard.split(' ')[0]} <span className="text-primary">{theme.wording.dashboard.split(' ')[1] || ''}</span>
@@ -107,7 +102,8 @@ export const Dashboard: React.FC = () => {
       </motion.div>
 
       {/* Life State Engine */}
-      <motion.div variants={theme.motion.variants.item}>
+      <motion.div variants={theme.motion.variants.item} className="relative overflow-hidden rounded-3xl">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/12 via-transparent to-secondary/10 pointer-events-none" />
         <LifeStateEngine 
           missions={missions}
           dailyScore={dailyScore}
@@ -133,7 +129,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <motion.div 
             whileHover={theme.motion.hover}
-            className="stitch-card p-4 bg-surface border-l-4 border-primary"
+            className="stitch-card p-4 bg-surface border-l-4 border-primary shadow-lg"
           >
             <p className="text-sm font-bold text-text_primary leading-relaxed">
               {aiInsight || motivationQuote}
@@ -171,7 +167,7 @@ export const Dashboard: React.FC = () => {
             whileHover={theme.motion.hover}
             whileTap={theme.motion.tap}
             onClick={() => setActiveTab('tasks')}
-            className="stitch-card p-4 md:p-5 flex flex-col items-center gap-3 hover:bg-surface transition-all"
+            className="stitch-card p-4 md:p-5 flex flex-col items-center gap-3 hover:bg-surface transition-all hover:shadow-xl"
           >
             <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
               <LayoutGrid size={20} />
@@ -182,7 +178,7 @@ export const Dashboard: React.FC = () => {
             whileHover={theme.motion.hover}
             whileTap={theme.motion.tap}
             onClick={() => setActiveTab('schedule')}
-            className="stitch-card p-4 md:p-5 flex flex-col items-center gap-3 hover:bg-surface transition-all"
+            className="stitch-card p-4 md:p-5 flex flex-col items-center gap-3 hover:bg-surface transition-all hover:shadow-xl"
           >
             <div className="size-10 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary">
               <Activity size={20} />
