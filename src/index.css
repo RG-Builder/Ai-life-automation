@@ -76,9 +76,88 @@
   .glow-border {
     box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
   }
+
+  .cinematic-shell {
+    background:
+      radial-gradient(circle at 20% 10%, rgba(139, 92, 246, 0.35), transparent 40%),
+      radial-gradient(circle at 85% 15%, rgba(34, 211, 238, 0.25), transparent 42%),
+      radial-gradient(circle at 50% 95%, rgba(249, 115, 22, 0.2), transparent 44%),
+      #05060f;
+  }
+
+  .aurora-shell {
+    background:
+      radial-gradient(circle at 15% 10%, rgba(56, 189, 248, 0.24), transparent 36%),
+      radial-gradient(circle at 86% 18%, rgba(20, 184, 166, 0.2), transparent 40%),
+      radial-gradient(circle at 56% 98%, rgba(37, 99, 235, 0.2), transparent 42%),
+      #dfefff;
+  }
+}
+
+@layer utilities {
+  .theme-cinematic .stitch-card,
+  .theme-cinematic .glass-card {
+    backdrop-filter: blur(14px);
+    transform-style: preserve-3d;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    box-shadow:
+      0 20px 42px rgba(2, 6, 23, 0.6),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+
+  .theme-cinematic .stitch-card:hover,
+  .theme-cinematic .glass-card:hover {
+    transform: perspective(980px) rotateX(2deg) translateY(-2px);
+    transition: transform 220ms ease, box-shadow 220ms ease;
+  }
+
+  .theme-aurora .stitch-card,
+  .theme-aurora .glass-card {
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(59, 130, 246, 0.24);
+    box-shadow:
+      0 12px 28px rgba(59, 130, 246, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+
+  .interactive-3d-shell {
+    will-change: transform;
+    animation: shell-breathe 5s ease-in-out infinite;
+  }
+
+  .interactive-3d-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 15% 12%, rgba(255, 255, 255, 0.28), transparent 30%),
+      radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.24), transparent 34%);
+    mix-blend-mode: screen;
+    opacity: 0.7;
+    transform: translateZ(24px);
+    animation: shell-glint 5s ease-in-out infinite;
+  }
 }
 
 @keyframes scanline {
   0% { bottom: 100%; }
   100% { bottom: -100%; }
+}
+
+@keyframes shell-glint {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.85; }
+}
+
+@keyframes shell-breathe {
+  0%, 100% { box-shadow: 0 24px 48px rgba(15, 23, 42, 0.28); }
+  50% { box-shadow: 0 30px 58px rgba(76, 29, 149, 0.35); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .interactive-3d-shell,
+  .interactive-3d-shell::before {
+    animation: none !important;
+  }
 }
