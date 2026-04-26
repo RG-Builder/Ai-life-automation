@@ -73,6 +73,7 @@ router.post("/verify", verifyFirebaseToken, async (req: AuthenticatedRequest, re
     });
     batch.update(userRef, { 
       subscription_plan: 'premium',
+      updated_by: `payment:${razorpay_payment_id}`,
       updated_at: admin.firestore.FieldValue.serverTimestamp()
     });
     
@@ -88,7 +89,11 @@ router.post("/cancel-subscription", verifyFirebaseToken, async (req: Authenticat
   const userId = req.user.id;
   const db = getFirestore();
   if (!db) return res.status(500).json({ error: "Database not initialized" });
-  await db.collection('users').doc(userId).update({ subscription_plan: 'trial' });
+  await db.collection('users').doc(userId).update({
+    subscription_plan: 'trial',
+    updated_by: userId,
+    updated_at: admin.firestore.FieldValue.serverTimestamp()
+  });
   res.json({ success: true, message: "Subscription cancelled" });
 });
 

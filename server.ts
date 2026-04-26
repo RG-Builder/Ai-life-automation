@@ -58,6 +58,29 @@ import { getFirestore } from "firebase-admin/firestore";
 
 dotenv.config();
 
+const assertNoEmailBasedAdminEscalation = () => {
+  const filesToScan = [
+    path.join(process.cwd(), "server.ts"),
+    path.join(process.cwd(), "src/server/middleware/auth.ts")
+  ];
+
+  const dangerousPatterns = [
+    /realprouser1234@gmail\.com/i,
+    /decodedToken\.email[\s\S]{0,300}role\s*=\s*['"]admin['"]/im
+  ];
+
+  for (const filePath of filesToScan) {
+    if (!fs.existsSync(filePath)) continue;
+    const content = fs.readFileSync(filePath, "utf8");
+    const hasDangerousPattern = dangerousPatterns.some((pattern) => pattern.test(content));
+    if (hasDangerousPattern) {
+      const message = `❌ FATAL ERROR: Hardcoded email-based admin escalation pattern detected in ${filePath}`;
+      console.error(message);
+      throw new Error(message);
+    }
+  }
+};
+
 // Environment Variable Validation
 const requiredEnvVars = [
   'JWT_SECRET',
@@ -181,6 +204,7 @@ const __dirname = path.dirname(__filename);
 
 async function startServer() {
   console.log("startServer function called...");
+  assertNoEmailBasedAdminEscalation();
   
   const app = express();
   const PORT = 3000;
@@ -341,72 +365,6 @@ async function startServer() {
       `,
     };
     await transporter.sendMail(mailOptions);
-  };
-
-  // Firebase Auth Middleware
-  const verifyFirebaseToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    
-    if (!token || token === 'null' || token === 'undefined') {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
-    try {
-      const decodedToken = await admin.auth().verifyIdToken(token);
-      
-      let user: AuthUser = {
-        id: decodedToken.uid,
-        email: decodedToken.email || '',
-        subscription_plan: 'trial',
-        role: 'user',
-        trial_used: 0
-      };
-
-      if (db) {
-        try {
-          const userRef = db.collection('users').doc(decodedToken.uid);
-          const userDoc = await userRef.get();
-          
-          if (!userDoc.exists) {
-            await userRef.set({
-              ...user,
-              created_at: admin.firestore.FieldValue.serverTimestamp()
-            });
-            console.log(`New user registered: ${decodedToken.email} (${decodedToken.uid})`);
-          } else {
-            user = { ...(userDoc.data() as AuthUser), id: decodedToken.uid };
-          }
-        } catch (dbError: unknown) {
-          const error = dbError as Error;
-          console.error("⚠️ Firestore profile fetch failed, using default profile:", error.message);
-          // Check if this is the bootstrapped admin
-          if (decodedToken.email === "realprouser1234@gmail.com" && decodedToken.email_verified) {
-            user.role = 'admin';
-            user.subscription_plan = 'premium';
-          }
-        }
-      } else {
-        // Fallback for bootstrapped admin when DB is not available
-        if (decodedToken.email === "realprouser1234@gmail.com" && decodedToken.email_verified) {
-          user.role = 'admin';
-          user.subscription_plan = 'premium';
-        }
-      }
-      
-      req.user = user;
-      next();
-    } catch (error: unknown) {
-      const err = error as Error;
-      console.error("❌ Auth Middleware Error:", err.message);
-      if (err.stack) console.error(err.stack);
-      
-      if ((err as any).code === 'auth/id-token-expired') {
-        return res.status(401).json({ error: "Token expired", code: "TOKEN_EXPIRED" });
-      }
-      
-      res.status(401).json({ error: "Authentication failed", details: err.message });
-    }
   };
 
   // AI Gateway Logic

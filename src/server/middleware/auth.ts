@@ -44,39 +44,41 @@ export const verifyFirebaseToken = async (req: AuthenticatedRequest, res: Respon
 
   try {
     const decodedToken = await admin.auth().verifyIdToken(token);
-    
-    let user: AuthUser = {
-      id: decodedToken.uid,
-      email: decodedToken.email || '',
-      subscription_plan: 'trial',
-      role: 'user',
-      trial_used: 0
-    };
 
-    try {
-      const db = getFirestore();
-      const userRef = db.collection('users').doc(decodedToken.uid);
-      const userDoc = await userRef.get();
-      
-      if (!userDoc.exists) {
-        await userRef.set({
-          ...user,
-          created_at: admin.firestore.FieldValue.serverTimestamp()
-        });
-        console.log(`New user registered: ${decodedToken.email} (${decodedToken.uid})`);
-      } else {
-        user = { ...(userDoc.data() as AuthUser), id: decodedToken.uid };
-      }
-    } catch (dbError: unknown) {
-      console.error("⚠️ Firestore profile fetch failed, using default profile:", (dbError as Error).message);
-      // Check if this is the bootstrapped admin
-      if (decodedToken.email === "realprouser1234@gmail.com" && decodedToken.email_verified) {
-        user.role = 'admin';
-        user.subscription_plan = 'premium';
-      }
+    const db = getFirestore();
+    const userRef = db.collection('users').doc(decodedToken.uid);
+    const userDoc = await userRef.get();
+
+    if (!userDoc.exists) {
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      const newUser: AuthUser = {
+        id: decodedToken.uid,
+        email: decodedToken.email || '',
+        subscription_plan: 'trial',
+        role: 'user',
+        trial_used: 0
+      };
+
+      await userRef.set({
+        ...newUser,
+        created_at: now,
+        updated_at: now,
+        updated_by: 'system:auto-provision'
+      });
+      console.log(`New user registered: ${decodedToken.email} (${decodedToken.uid})`);
+      req.user = newUser;
+      return next();
     }
-    
-    req.user = user;
+
+    const firestoreUser = userDoc.data() as Partial<AuthUser> | undefined;
+    req.user = {
+      id: decodedToken.uid,
+      email: decodedToken.email || firestoreUser?.email || '',
+      subscription_plan: firestoreUser?.subscription_plan || 'trial',
+      role: firestoreUser?.role || 'user',
+      trial_used: firestoreUser?.trial_used || 0,
+      ...(firestoreUser || {})
+    };
     next();
   } catch (error: unknown) {
     const err = error as Error;
