@@ -9,7 +9,6 @@ import {
   AlertCircle,
   X
 } from 'lucide-react';
-import { cn } from '../lib/utils';
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../theme';
@@ -77,9 +76,13 @@ export const MinimalTheme: React.FC = () => {
       <header 
         className="px-6 pt-12 pb-4 flex justify-between items-center sticky top-0 backdrop-blur-xl z-50 border-b border-border/40 bg-background/80"
       >
-        <div className="flex items-center gap-3">
-          <img src={firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
-          <h1 className="font-bold text-lg leading-tight tracking-tight">{tabTitle}</h1>
+        <div className="flex items-center gap-3 min-w-0">
+          <img
+            src={firebaseUser?.photoURL || "https://i.pravatar.cc/150?img=11"}
+            alt="Profile"
+            className="w-8 h-8 rounded-full object-cover shrink-0"
+          />
+          <h1 className="font-bold text-lg leading-tight tracking-tight truncate">{tabTitle}</h1>
         </div>
         <div className="flex items-center gap-3">
           {!firebaseUser && (
@@ -105,32 +108,31 @@ export const MinimalTheme: React.FC = () => {
       <nav 
         className="fixed bottom-0 left-0 right-0 border-t border-border/40 pb-safe pt-3 px-4 md:px-6 z-50 backdrop-blur-xl bg-background/85"
       >
-        <div className="flex justify-between items-center mb-4 max-w-md mx-auto overflow-x-auto no-scrollbar gap-1 rounded-2xl p-2 bg-surface/80 border border-border/50 shadow-xl">
+        <ul className="flex justify-between items-center mb-4 max-w-md mx-auto overflow-x-auto no-scrollbar gap-1 rounded-2xl p-2 bg-surface/80 border border-border/50 shadow-xl">
           {navItems.map((item) => (
-            <NavItem
-              key={item.key}
-              icon={item.icon}
-              label={item.label}
-              active={activeTab === item.key}
-              onClick={() => setActiveTab(item.key)}
-            />
+            <li key={item.key}>
+              <NavItem
+                icon={item.icon}
+                label={item.label}
+                active={activeTab === item.key}
+                onClick={() => setActiveTab(item.key)}
+              />
+            </li>
           ))}
-        </div>
+        </ul>
       </nav>
     </div>
   );
 };
 
 const NavItem = ({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) => {
-  const { theme } = useTheme();
   return (
     <button 
       onClick={onClick}
-      className={cn(
+      className={[
         "flex flex-col items-center justify-center w-16 gap-1.5 transition-colors duration-200",
-        !active && "text-gray-400 hover:text-gray-600"
-      )}
-      style={active ? { color: theme.colors.primary } : {}}
+        active ? "text-primary" : "text-gray-400 hover:text-gray-600"
+      ].join(' ')}
     >
       {icon}
       <span className="text-[9px] font-bold tracking-wider">{label}</span>
