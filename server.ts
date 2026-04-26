@@ -65,8 +65,9 @@ const assertNoEmailBasedAdminEscalation = () => {
   ];
 
   const dangerousPatterns = [
-    /realprouser1234@gmail\.com/i,
-    /decodedToken\.email[\s\S]{0,300}role\s*=\s*['"]admin['"]/im
+    /decodedToken\.email[\s\S]{0,400}(role|subscription_plan)\s*=\s*['"](admin|premium)['"]/im,
+    /email_verified[\s\S]{0,400}(role|subscription_plan)\s*=\s*['"](admin|premium)['"]/im,
+    /@[a-z0-9.-]+\.[a-z]{2,}[\s\S]{0,400}(role|subscription_plan)\s*=\s*['"](admin|premium)['"]/im
   ];
 
   for (const filePath of filesToScan) {

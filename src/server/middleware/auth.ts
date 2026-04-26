@@ -51,33 +51,44 @@ export const verifyFirebaseToken = async (req: AuthenticatedRequest, res: Respon
 
     if (!userDoc.exists) {
       const now = admin.firestore.FieldValue.serverTimestamp();
-      const newUser: AuthUser = {
+      await userRef.set({
         id: decodedToken.uid,
         email: decodedToken.email || '',
         subscription_plan: 'trial',
         role: 'user',
-        trial_used: 0
-      };
-
-      await userRef.set({
-        ...newUser,
+        trial_used: 0,
         created_at: now,
         updated_at: now,
         updated_by: 'system:auto-provision'
       });
       console.log(`New user registered: ${decodedToken.email} (${decodedToken.uid})`);
-      req.user = newUser;
-      return next();
     }
 
-    const firestoreUser = userDoc.data() as Partial<AuthUser> | undefined;
+    const effectiveUserDoc = userDoc.exists ? userDoc : await userRef.get();
+    const firestoreUser = effectiveUserDoc.data() as Partial<AuthUser> | undefined;
+    if (!firestoreUser) {
+      return res.status(500).json({ error: "Unable to load user profile from Firestore" });
+    }
+
+    if (!firestoreUser.role || !firestoreUser.subscription_plan) {
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      const fallbackRole = firestoreUser.role || "user";
+      const fallbackPlan = firestoreUser.subscription_plan || "trial";
+      await userRef.set({
+        role: fallbackRole,
+        subscription_plan: fallbackPlan,
+        updated_at: now,
+        updated_by: "system:profile-normalization"
+      }, { merge: true });
+    }
+
     req.user = {
       id: decodedToken.uid,
       email: decodedToken.email || firestoreUser?.email || '',
-      subscription_plan: firestoreUser?.subscription_plan || 'trial',
-      role: firestoreUser?.role || 'user',
+      subscription_plan: firestoreUser.subscription_plan || 'trial',
+      role: firestoreUser.role || 'user',
       trial_used: firestoreUser?.trial_used || 0,
-      ...(firestoreUser || {})
+      ...firestoreUser
     };
     next();
   } catch (error: unknown) {
