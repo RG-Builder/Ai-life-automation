@@ -2,7 +2,6 @@ import express, { Response } from "express";
 import { AuthenticatedRequest, verifyFirebaseToken } from "../middleware/auth";
 import Razorpay from "razorpay";
 import crypto from "crypto";
-import admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
 
 const router = express.Router();
@@ -32,7 +31,7 @@ router.post("/create-order", verifyFirebaseToken, async (req: AuthenticatedReque
       amount,
       currency,
       status: 'created',
-      created_at: admin.firestore.FieldValue.serverTimestamp()
+      created_at: new Date().toISOString()
     });
     
     res.json(order);
@@ -69,11 +68,11 @@ router.post("/verify", verifyFirebaseToken, async (req: AuthenticatedRequest, re
     batch.update(paymentRef, { 
       razorpay_payment_id, 
       status: 'captured',
-      updated_at: admin.firestore.FieldValue.serverTimestamp()
+      updated_at: new Date().toISOString()
     });
     batch.update(userRef, { 
       subscription_plan: 'premium',
-      updated_at: admin.firestore.FieldValue.serverTimestamp()
+      updated_at: new Date().toISOString()
     });
     
     await batch.commit();
