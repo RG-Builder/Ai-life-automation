@@ -4,7 +4,6 @@ import { Brain, Target, Activity, Flame, Zap } from 'lucide-react';
 import { Mission, Habit, Analytics } from '../../types';
 import { useAppContext } from '../../context/AppContext';
 import { useTheme } from '../../theme';
-import { toDate } from '../../lib/utils';
 
 export const SelfAwareness: React.FC = () => {
   const { missions, habits } = useAppContext();
@@ -14,27 +13,8 @@ export const SelfAwareness: React.FC = () => {
   const totalMissions = missions.length;
   const cognitiveEfficiency = totalMissions > 0 ? Math.round((completedMissions.length / totalMissions) * 100) : 0;
   
-  const habitConsistency = habits.length > 0
-    ? Math.round(
-        (habits.reduce((acc, h) => {
-          const goal = Math.max(1, Number(h.goal_count) || 0);
-          const progress = (Number(h.current_count) || 0) / goal;
-          return acc + Math.min(1, Math.max(0, progress));
-        }, 0) / habits.length) * 100
-      )
-    : 0;
-  const weeklyCompletion = Array.from({ length: 7 }, (_, idx) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (6 - idx));
-    const target = date.toISOString().split('T')[0];
-    const count = completedMissions.filter(m => {
-      if (!m.completed_at) return false;
-      return toDate(m.completed_at).toISOString().split('T')[0] === target;
-    }).length;
-    return { label: date.toLocaleDateString([], { weekday: 'short' }), count };
-  });
-  const weeklyCompletedTotal = weeklyCompletion.reduce((sum, d) => sum + d.count, 0);
-  const peakDay = weeklyCompletion.reduce((peak, day) => day.count > peak.count ? day : peak, weeklyCompletion[0]);
+  const habitConsistency = habits.length > 0 ? 
+    Math.round((habits.reduce((acc, h) => acc + (h.current_count / h.goal_count), 0) / habits.length) * 100) : 0;
 
   return (
     <motion.div 
@@ -127,34 +107,6 @@ export const SelfAwareness: React.FC = () => {
             <div className="text-3xl font-black text-primary">{Math.round(cognitiveEfficiency * 0.7 + habitConsistency * 0.3)}</div>
           </div>
         </div>
-      </motion.div>
-
-      <motion.div variants={theme.motion.variants.item} className="stitch-card p-8 space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xl font-black tracking-tight text-text_primary">7-Day Completion Momentum</h3>
-          <span className="text-xs font-black uppercase tracking-widest text-primary">{weeklyCompletedTotal} total</span>
-        </div>
-        <div className="grid grid-cols-7 gap-3">
-          {weeklyCompletion.map((day) => {
-            const height = Math.max(8, day.count * 12);
-            return (
-              <div key={day.label} className="flex flex-col items-center gap-2">
-                <div className="w-full h-20 bg-surface rounded-lg flex items-end p-1">
-                  <motion.div
-                    initial={{ height: 0 }}
-                    animate={{ height }}
-                    className="w-full bg-primary rounded-md"
-                  />
-                </div>
-                <div className="text-[10px] font-black text-text_secondary uppercase tracking-widest">{day.label}</div>
-                <div className="text-xs font-bold text-text_primary">{day.count}</div>
-              </div>
-            );
-          })}
-        </div>
-        <p className="text-xs font-medium text-text_secondary">
-          Peak day this week: <span className="font-black text-text_primary">{peakDay.label}</span> ({peakDay.count} completed)
-        </p>
       </motion.div>
     </motion.div>
   );

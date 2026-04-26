@@ -28,10 +28,10 @@ interface AppContextType {
   aiInsight: string | null;
   
   // Actions
-  addTask: (task: Partial<Mission>) => Promise<void>;
-  completeTask: (taskId: string) => Promise<void>;
-  deleteTask: (taskId: string) => Promise<void>;
-  updateTask: (taskId: string, updates: Partial<Mission>) => Promise<void>;
+  addTask: (task: Partial<Mission>) => void;
+  completeTask: (taskId: string) => void;
+  deleteTask: (taskId: string) => void;
+  updateTask: (taskId: string, updates: Partial<Mission>) => void;
   setFocusTask: (task: Mission | null) => void;
   updateLifeScore: (score: number) => void;
   updateStreak: (streak: number) => void;
@@ -172,8 +172,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         await generateSchedule();
         setActiveTab('schedule');
         break;
-      case 'COMPLETE_TASK': if (id) await handleCompleteTask(id); break;
-      case 'DELETE_TASK': if (id) await handleDeleteTask(id); break;
+      case 'COMPLETE_TASK': if (id) handleCompleteTask(id); break;
+      case 'DELETE_TASK': if (id) handleDeleteTask(id); break;
       case 'ADD_TASK': if (data) await handleAddTask(data); break;
       case 'UPDATE_TASK': if (id && data.data) await handleUpdateTask(id, data.data); break;
       case 'ADD_HABIT': if (data) await handleAddHabit(data); break;

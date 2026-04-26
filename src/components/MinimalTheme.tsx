@@ -73,7 +73,7 @@ export const MinimalTheme: React.FC = () => {
 
       {/* Header */}
       <header 
-        className="px-4 sm:px-6 pt-[max(env(safe-area-inset-top),2.75rem)] pb-4 sm:pb-6 flex justify-between items-center sticky top-0 backdrop-blur-md z-50 gap-3"
+        className="px-6 pt-12 pb-6 flex justify-between items-center sticky top-0 backdrop-blur-md z-50"
         style={{ backgroundColor: `${theme.colors.background}CC` }} // CC is 80% opacity
       >
         <div className="flex items-center gap-3">
@@ -102,7 +102,7 @@ export const MinimalTheme: React.FC = () => {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto px-4 sm:px-6 pb-36 sm:pb-32">
+      <main className="flex-1 overflow-y-auto px-6 pb-32">
         <AnimatePresence mode="wait">
           {activeTab === 'home' && <Dashboard key="home" />}
           {activeTab === 'tasks' && <MissionMatrix key="tasks" />}
@@ -114,10 +114,10 @@ export const MinimalTheme: React.FC = () => {
 
       {/* Bottom Navigation */}
       <nav 
-        className="fixed bottom-0 left-0 right-0 border-t border-gray-100 pt-3 px-3 sm:px-6 z-50"
-        style={{ backgroundColor: theme.colors.background, paddingBottom: 'max(env(safe-area-inset-bottom), 0.75rem)' }}
+        className="fixed bottom-0 left-0 right-0 border-t border-gray-100 pb-safe pt-3 px-6 z-50"
+        style={{ backgroundColor: theme.colors.background }}
       >
-        <div className="flex justify-between items-center mb-2 sm:mb-4 max-w-sm mx-auto gap-1 sm:gap-2">
+        <div className="flex justify-between items-center mb-4 max-w-sm mx-auto overflow-x-auto no-scrollbar gap-1">
           <NavItem id="home" icon={<Target size={22} />} label={theme.wording.navigation.home} active={activeTab === 'home'} onClick={() => setActiveTab('home')} />
           <NavItem id="tasks" icon={<ClipboardList size={22} />} label={theme.wording.navigation.tasks} active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} />
           <NavItem id="habits" icon={<RefreshCw size={22} />} label={theme.wording.navigation.habits} active={activeTab === 'habits'} onClick={() => setActiveTab('habits')} />
@@ -135,13 +135,13 @@ const NavItem = ({ id, icon, label, active, onClick }: { id: string, icon: React
     <button 
       onClick={onClick}
       className={cn(
-        "flex-1 min-w-0 flex flex-col items-center justify-center gap-1 transition-colors duration-200 py-1.5",
+        "flex flex-col items-center justify-center w-16 gap-1.5 transition-colors duration-200",
         !active && "text-gray-400 hover:text-gray-600"
       )}
       style={active ? { color: theme.colors.primary } : {}}
     >
       {icon}
-      <span className="text-[8px] sm:text-[9px] font-bold tracking-wider truncate max-w-full">{label}</span>
+      <span className="text-[9px] font-bold tracking-wider">{label}</span>
     </button>
   );
 };

@@ -1,5 +1,22 @@
+console.log("Starting server.ts...");
 import fs from 'fs';
-import { logger, LOGGING_STRATEGY } from './src/server/logger';
+
+const logStream = fs.createWriteStream('server.log', { flags: 'a' });
+const originalLog = console.log;
+const originalError = console.error;
+const originalWarn = console.warn;
+console.log = function(...args) {
+  logStream.write(new Date().toISOString() + ' LOG: ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ') + '\n');
+  originalLog.apply(console, args);
+};
+console.error = function(...args) {
+  logStream.write(new Date().toISOString() + ' ERR: ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ') + '\n');
+  originalError.apply(console, args);
+};
+console.warn = function(...args) {
+  logStream.write(new Date().toISOString() + ' WRN: ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ') + '\n');
+  originalWarn.apply(console, args);
+};
 
 import express, { Request, Response, NextFunction } from "express";
 import aiRoutes from "./src/server/routes/ai";
@@ -41,8 +58,6 @@ import { getFirestore } from "firebase-admin/firestore";
 
 dotenv.config();
 
-logger.info('Logger initialized', { loggingStrategy: LOGGING_STRATEGY });
-
 // Environment Variable Validation
 const requiredEnvVars = [
   'JWT_SECRET',
@@ -52,11 +67,11 @@ const requiredEnvVars = [
 if (process.env.NODE_ENV === 'production') {
   const missingVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
   if (missingVars.length > 0) {
-    logger.error(`❌ FATAL ERROR: Missing required environment variables in production: ${missingVars.join(', ')}`);
+    console.error(`❌ FATAL ERROR: Missing required environment variables in production: ${missingVars.join(', ')}`);
     process.exit(1);
   }
   if (process.env.JWT_SECRET === 'dev_secret_only') {
-    logger.error(`❌ FATAL ERROR: Using development JWT_SECRET in production!`);
+    console.error(`❌ FATAL ERROR: Using development JWT_SECRET in production!`);
     process.exit(1);
   }
 }
@@ -105,59 +120,59 @@ if (process.env.NODE_ENV === 'production') {
                 databaseId = config.firestoreDatabaseId;
               }
             } catch (err) {
-              logger.warn("⚠️ Could not read firebase-applet-config.json for databaseId");
+              console.warn("⚠️ Could not read firebase-applet-config.json for databaseId");
             }
             
             if (!databaseId) {
               databaseId = process.env.FIREBASE_DATABASE_ID || "";
             }
             
-            logger.info(`✅ Firebase Admin initialized for project: ${serviceAccount.project_id}`);
-            logger.info(`🔑 Service Account Email: ${serviceAccount.client_email}`);
-            logger.info(`🗄️ Target Database: ${databaseId || '(default)'}`);
+            console.log(`✅ Firebase Admin initialized for project: ${serviceAccount.project_id}`);
+            console.log(`🔑 Service Account Email: ${serviceAccount.client_email}`);
+            console.log(`🗄️ Target Database: ${databaseId || '(default)'}`);
             
             db = getFirestore(adminApp, databaseId || undefined);
             
             // Verify database access
             try {
               await db.collection('_health_check_').limit(1).get();
-              logger.info("✅ Firestore database access verified");
+              console.log("✅ Firestore database access verified");
             } catch (err: unknown) {
               const error = err as Error;
               const isNotFoundError = error.message.includes('NOT_FOUND');
               const isPermissionError = error.message.includes('PERMISSION_DENIED');
               
               if ((isPermissionError || isNotFoundError) && databaseId) {
-                logger.warn(`⚠️ ${isNotFoundError ? 'NOT_FOUND' : 'PERMISSION_DENIED'} on database ${databaseId}. Falling back to (default) database.`);
+                console.warn(`⚠️ ${isNotFoundError ? 'NOT_FOUND' : 'PERMISSION_DENIED'} on database ${databaseId}. Falling back to (default) database.`);
                 db = getFirestore(adminApp);
                 try {
                   await db.collection('_health_check_').limit(1).get();
-                  logger.info("✅ Firestore fallback to (default) database successful");
+                  console.log("✅ Firestore fallback to (default) database successful");
                 } catch (fallbackErr: unknown) {
                   const fErr = fallbackErr as Error;
-                  logger.warn(`⚠️ (default) database also failed: ${fErr.message}. Trying projectId as databaseId.`);
+                  console.warn(`⚠️ (default) database also failed: ${fErr.message}. Trying projectId as databaseId.`);
                   db = getFirestore(adminApp, serviceAccount.project_id);
                   try {
                     await db.collection('_health_check_').limit(1).get();
-                    logger.info(`✅ Firestore fallback to projectId ${serviceAccount.project_id} successful`);
+                    console.log(`✅ Firestore fallback to projectId ${serviceAccount.project_id} successful`);
                   } catch (projectErr: unknown) {
                     const pErr = projectErr as Error;
-                    logger.error("❌ All Firestore initialization attempts failed:", pErr.message);
+                    console.error("❌ All Firestore initialization attempts failed:", pErr.message);
                   }
                 }
               } else {
-                logger.error("❌ Firestore initial health check failed:", error.message);
+                console.error("❌ Firestore initial health check failed:", error.message);
               }
             }
           }
         }
       } catch (e: unknown) {
         const error = e as Error;
-        logger.error("❌ Firebase Admin initialization failed:", error.message);
-        logger.error("Raw string length:", (process.env.FIREBASE_SERVICE_ACCOUNT || "").length);
+        console.error("❌ Firebase Admin initialization failed:", error.message);
+        console.error("Raw string length:", (process.env.FIREBASE_SERVICE_ACCOUNT || "").length);
       }
   } else {
-    logger.warn("⚠️ FIREBASE_SERVICE_ACCOUNT not found. Some backend features may be limited.");
+    console.warn("⚠️ FIREBASE_SERVICE_ACCOUNT not found. Some backend features may be limited.");
   }
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -165,7 +180,7 @@ const __dirname = path.dirname(__filename);
 // Database will be initialized inside startServer
 
 async function startServer() {
-  logger.debug("startServer function called...");
+  console.log("startServer function called...");
   
   const app = express();
   const PORT = 3000;
@@ -229,7 +244,7 @@ async function startServer() {
   }));
   app.use(cors());
   app.use(compression());
-  app.use(express.json({ limit: "256kb" }));
+  app.use(express.json());
   app.get("/manifest.json", (req, res) => {
     res.sendFile(path.join(__dirname, "manifest.json"));
   });
@@ -239,33 +254,15 @@ async function startServer() {
 
   app.use("/api", globalLimiter);
 
-  app.post("/api/log-error", express.json({ limit: "16kb" }), (req, res) => {
-    const { error, stack, context, paymentId, email } = req.body ?? {};
-
-    if (typeof error !== 'string' || error.length === 0 || error.length > 2000) {
-      return res.status(400).json({ error: 'Invalid error payload' });
-    }
-
-    if (stack && (typeof stack !== 'string' || stack.length > 8000)) {
-      return res.status(400).json({ error: 'Invalid stack payload' });
-    }
-
-    if (context && (typeof context !== 'object' || Array.isArray(context))) {
-      return res.status(400).json({ error: 'Invalid context payload' });
-    }
-
-    const payload = {
-      error,
-      ...(stack ? { stack } : {}),
-      ...(context ? { context } : {}),
-      ...(typeof paymentId === 'string' ? { paymentId } : {}),
-      ...(typeof email === 'string' ? { email } : {}),
-      userAgent: req.get('user-agent') || 'unknown',
-      path: req.path,
-    };
-
-    void logger.clientError(payload);
-    res.status(202).json({ status: "accepted" });
+  app.post("/api/log-error", express.json(), (req, res) => {
+    console.error("🚨 CLIENT ERROR LOGGED:");
+    console.error(req.body.error);
+    if (req.body.stack) console.error(req.body.stack);
+    
+    const fs = require('fs');
+    fs.appendFileSync('client-errors.log', new Date().toISOString() + ' - ' + req.body.error + '\n');
+    
+    res.json({ status: "ok" });
   });
 
   // Auth Middleware
@@ -277,7 +274,7 @@ async function startServer() {
     jwt.verify(token, process.env.JWT_SECRET || 'dev_secret_only', (err: jwt.VerifyErrors | null, user: string | jwt.JwtPayload | undefined) => {
       if (err) return res.status(403).json({ error: "Invalid token" });
       if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev_secret_only')) {
-        logger.error("CRITICAL SECURITY ERROR: JWT_SECRET is not set in production!");
+        console.error("CRITICAL SECURITY ERROR: JWT_SECRET is not set in production!");
         return res.status(500).json({ error: "Server configuration error" });
       }
       req.user = user as AuthUser;
@@ -376,13 +373,13 @@ async function startServer() {
               ...user,
               created_at: admin.firestore.FieldValue.serverTimestamp()
             });
-            logger.info(`New user registered: ${decodedToken.email} (${decodedToken.uid})`);
+            console.log(`New user registered: ${decodedToken.email} (${decodedToken.uid})`);
           } else {
             user = { ...(userDoc.data() as AuthUser), id: decodedToken.uid };
           }
         } catch (dbError: unknown) {
           const error = dbError as Error;
-          logger.error("⚠️ Firestore profile fetch failed, using default profile:", error.message);
+          console.error("⚠️ Firestore profile fetch failed, using default profile:", error.message);
           // Check if this is the bootstrapped admin
           if (decodedToken.email === "realprouser1234@gmail.com" && decodedToken.email_verified) {
             user.role = 'admin';
@@ -401,8 +398,8 @@ async function startServer() {
       next();
     } catch (error: unknown) {
       const err = error as Error;
-      logger.error("❌ Auth Middleware Error:", err.message);
-      if (err.stack) logger.error(err.stack);
+      console.error("❌ Auth Middleware Error:", err.message);
+      if (err.stack) console.error(err.stack);
       
       if ((err as any).code === 'auth/id-token-expired') {
         return res.status(401).json({ error: "Token expired", code: "TOKEN_EXPIRED" });
@@ -427,7 +424,7 @@ async function startServer() {
 
   // Global Error Handler
   app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    logger.error("Unhandled Error:", err);
+    console.error("Unhandled Error:", err);
     res.status(500).json({ 
       error: "Internal Server Error", 
       message: err.message
@@ -437,15 +434,15 @@ async function startServer() {
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     try {
-      logger.debug("Creating Vite server...");
+      console.log("Creating Vite server...");
       const vite = await createViteServer({
         server: { middlewareMode: true },
         appType: "spa",
       });
-      logger.debug("Vite server created successfully.");
+      console.log("Vite server created successfully.");
       app.use(vite.middlewares);
     } catch (e) {
-      logger.error("Failed to create Vite server:", e);
+      console.error("Failed to create Vite server:", e);
     }
   } else {
     app.use(express.static(path.join(__dirname, "dist")));
@@ -455,23 +452,23 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    logger.info(`Server running on http://0.0.0.0:${PORT}`);
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
   }).on('error', (err: NodeJS.ErrnoException) => {
-    logger.error("Server failed to start (listen error):", err);
+    console.error("Server failed to start (listen error):", err);
     if (err.code === 'EADDRINUSE') {
-      logger.error(`Port ${PORT} is already in use.`);
+      console.error(`Port ${PORT} is already in use.`);
     }
   });
 }
 
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection', { promise: String(promise), reason });
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 process.on('uncaughtException', (err) => {
-  logger.error('Uncaught Exception thrown:', err);
+  console.error('Uncaught Exception thrown:', err);
 });
 
 startServer().catch(err => {
-  logger.error("Critical error in startServer execution:", err);
+  console.error("Critical error in startServer execution:", err);
 });

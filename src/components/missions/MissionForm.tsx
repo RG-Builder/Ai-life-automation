@@ -43,11 +43,11 @@ export const MissionForm: React.FC<MissionFormProps> = ({ editingMission, onSave
     }
   }, [editingMission]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
-    await onSave({
+    onSave({
       title,
       urgency_score: urgencyScore,
       estimated_effort: estimatedEffort,

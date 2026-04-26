@@ -74,7 +74,7 @@ export const EliteTheme: React.FC = () => {
 
       {/* Header */}
       <header 
-        className="px-4 sm:px-6 pt-[max(env(safe-area-inset-top),2.75rem)] pb-4 flex justify-between items-start sticky top-0 backdrop-blur-md z-40 border-b gap-3"
+        className="px-6 pt-12 pb-4 flex justify-between items-start sticky top-0 backdrop-blur-md z-40 border-b"
         style={{ backgroundColor: `${theme.colors.background}E6`, borderColor: `${theme.colors.primary}33` }}
       >
         <div>
@@ -95,7 +95,7 @@ export const EliteTheme: React.FC = () => {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto px-4 sm:px-6 pb-36 sm:pb-32 relative z-30">
+      <main className="flex-1 overflow-y-auto px-6 pb-32 relative z-30">
         <AnimatePresence mode="wait">
           {activeTab === 'home' && <Dashboard key="home" />}
           {activeTab === 'tasks' && <MissionMatrix key="tasks" />}
@@ -107,10 +107,10 @@ export const EliteTheme: React.FC = () => {
 
       {/* Bottom Navigation */}
       <nav 
-        className="fixed bottom-0 left-0 right-0 border-t pt-3 sm:pt-4 px-3 sm:px-6 z-40"
-        style={{ backgroundColor: theme.colors.background, borderColor: `${theme.colors.primary}4D`, paddingBottom: 'max(env(safe-area-inset-bottom), 0.75rem)' }}
+        className="fixed bottom-0 left-0 right-0 border-t pb-safe pt-4 px-6 z-40"
+        style={{ backgroundColor: theme.colors.background, borderColor: `${theme.colors.primary}4D` }}
       >
-        <div className="flex justify-between items-center mb-2 sm:mb-6 max-w-sm mx-auto gap-1.5 sm:gap-2">
+        <div className="flex justify-between items-center mb-6 max-w-sm mx-auto overflow-x-auto no-scrollbar gap-2">
           <NavItem id="home" label={theme.wording.navigation.home} active={activeTab === 'home'} onClick={() => setActiveTab('home')} />
           <NavItem id="tasks" label={theme.wording.navigation.tasks} active={activeTab === 'tasks'} onClick={() => setActiveTab('tasks')} />
           <NavItem id="habits" label={theme.wording.navigation.habits} active={activeTab === 'habits'} onClick={() => setActiveTab('habits')} />
@@ -128,7 +128,7 @@ const NavItem = ({ id, label, active, onClick }: { id: string, label: string, ac
     <button 
       onClick={onClick}
       className={cn(
-        "text-[10px] sm:text-xs font-bold tracking-widest transition-all duration-200 px-2 sm:px-3 py-2 border border-transparent flex-1 min-w-0 truncate"
+        "text-xs font-bold tracking-widest transition-all duration-200 px-3 py-2 border border-transparent"
       )}
       style={active ? { color: theme.colors.primary, borderColor: `${theme.colors.primary}80`, backgroundColor: `${theme.colors.primary}1A`, boxShadow: `0 0 10px ${theme.colors.primary}33` } : { color: theme.colors.text_secondary }}
     >

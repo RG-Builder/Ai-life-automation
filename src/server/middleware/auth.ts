@@ -35,10 +35,6 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
 
 // Firebase Auth Middleware
 export const verifyFirebaseToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  if (req.user?.id) {
-    return next();
-  }
-
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Dumbbell, Search } from 'lucide-react';
+import { Plus, Dumbbell } from 'lucide-react';
 import { HabitCard } from '../habits/HabitCard';
 import { HabitForm } from '../habits/HabitForm';
 import { Habit } from '../../types';
@@ -13,19 +13,6 @@ export const HabitsView: React.FC = () => {
 
   const [showHabitModal, setShowHabitModal] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [frequencyFilter, setFrequencyFilter] = useState<'all' | 'daily' | 'weekly'>('all');
-
-  const filteredHabits = habits
-    .filter(habit => (frequencyFilter === 'all' ? true : habit.frequency === frequencyFilter))
-    .filter(habit =>
-      searchQuery.trim()
-        ? habit.title.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
-          habit.description.toLowerCase().includes(searchQuery.trim().toLowerCase())
-        : true
-    );
-
-  const completedHabitsCount = habits.filter(habit => habit.current_count >= habit.goal_count).length;
 
   const handleSave = async (payload: any) => {
     if (editingHabit) {
@@ -68,42 +55,8 @@ export const HabitsView: React.FC = () => {
         </motion.button>
       </motion.div>
 
-      <motion.div variants={theme.motion.variants.item} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="md:col-span-2 relative">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text_secondary" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search habits..."
-              className="w-full bg-surface border border-border rounded-xl px-10 py-3 text-sm text-text_primary outline-none focus:border-primary/50 transition-colors"
-            />
-          </div>
-          <div className="flex p-1.5 rounded-xl border overflow-x-auto no-scrollbar bg-surface border-border">
-            {(['all', 'daily', 'weekly'] as const).map(filter => (
-              <button
-                key={filter}
-                onClick={() => setFrequencyFilter(filter)}
-                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${frequencyFilter === filter ? 'bg-primary text-black' : 'text-text_secondary hover:text-text_primary'}`}
-              >
-                {filter}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-surface border border-border text-text_secondary">
-            Total: <span className="text-text_primary">{habits.length}</span>
-          </span>
-          <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-surface border border-border text-text_secondary">
-            Goal Hit: <span className="text-primary">{completedHabitsCount}</span>
-          </span>
-        </div>
-      </motion.div>
-
       <motion.div variants={theme.motion.variants.container} className="grid grid-cols-1 gap-6">
-        {filteredHabits.map(habit => (
+        {habits.map(habit => (
           <motion.div key={habit.id} variants={theme.motion.variants.item}>
             <HabitCard 
               habit={habit} 
@@ -128,14 +81,6 @@ export const HabitsView: React.FC = () => {
             >
               Initialize First Protocol
             </motion.button>
-          </motion.div>
-        )}
-        {habits.length > 0 && filteredHabits.length === 0 && (
-          <motion.div 
-            variants={theme.motion.variants.item}
-            className="p-8 text-center border border-dashed border-border rounded-2xl bg-surface/50 text-text_secondary font-bold"
-          >
-            No habits match your current search/filter.
           </motion.div>
         )}
       </motion.div>

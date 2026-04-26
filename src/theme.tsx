@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export type ThemeType = 'elite' | 'simple' | 'minimal' | 'gamified' | 'cinematic' | 'aurora';
+export type ThemeType = 'elite' | 'simple' | 'minimal' | 'gamified';
 
 export interface ThemeTokens {
   id: ThemeType;
@@ -367,157 +367,6 @@ export const themes: Record<ThemeType, ThemeTokens> = {
       tap: { scale: 0.98 }
     },
   },
-  cinematic: {
-    id: 'cinematic',
-    name: 'Cinematic 3D',
-    isDark: true,
-    colors: {
-      background: '#06070f',
-      surface: 'rgba(14, 17, 34, 0.78)',
-      primary: '#8b5cf6',
-      secondary: '#f97316',
-      accent: '#22d3ee',
-      text_primary: '#f8fafc',
-      text_secondary: '#cbd5e1',
-      border: 'rgba(148, 163, 184, 0.22)',
-      success: '#10b981',
-      danger: '#f43f5e',
-      glow: 'rgba(139, 92, 246, 0.35)',
-      elevation: '0 22px 48px rgba(0, 0, 0, 0.55)',
-    },
-    typography: {
-      fontSans: '"Outfit", "Inter", sans-serif',
-      fontMono: '"JetBrains Mono", monospace',
-      headingWeight: '800',
-      bodyWeight: '500',
-    },
-    spacing: {
-      borderRadius: '30px',
-      padding: '24px',
-      cardPadding: '24px',
-    },
-    wording: {
-      dashboard: 'Director View',
-      missions: 'Scene Queue',
-      focusScore: 'Frame Quality',
-      execute: 'Roll Scene',
-      insight: 'Studio Insight',
-      timeline: 'Shot Timeline',
-      awareness: 'Performance',
-      pilot: 'Call Action',
-      neuralSync: 'Camera Lock: Active',
-      tasks: 'Scenes',
-      dailyGoal: 'Frame Target',
-      efficiency: 'Flow',
-      activeMissions: 'Live Scenes',
-      activeTasks: 'Live Scenes',
-      activeFocus: 'Live Scenes',
-      score: 'Production Score',
-      schedule: 'Shot Timeline',
-      navigation: {
-        home: 'Studio',
-        tasks: 'Scenes',
-        habits: 'Routines',
-        schedule: 'Timeline',
-        analytics: 'Quality',
-        settings: 'Styling',
-      }
-    },
-    motion: {
-      transition: { type: "spring", stiffness: 250, damping: 24 },
-      variants: {
-        container: {
-          hidden: { opacity: 0, y: 10 },
-          show: {
-            opacity: 1,
-            y: 0,
-            transition: { staggerChildren: 0.05 }
-          }
-        },
-        item: {
-          hidden: { opacity: 0, y: 16, rotateX: -8 },
-          show: { opacity: 1, y: 0, rotateX: 0 }
-        }
-      },
-      hover: { scale: 1.02, rotateX: 1, rotateY: -1, boxShadow: "0 20px 45px rgba(139, 92, 246, 0.35)" },
-      tap: { scale: 0.98 }
-    },
-  },
-  aurora: {
-    id: 'aurora',
-    name: 'Aurora Glass',
-    isDark: false,
-    colors: {
-      background: '#eef6ff',
-      surface: 'rgba(255, 255, 255, 0.7)',
-      primary: '#2563eb',
-      secondary: '#0ea5e9',
-      accent: '#14b8a6',
-      text_primary: '#0f172a',
-      text_secondary: '#334155',
-      border: 'rgba(37, 99, 235, 0.18)',
-      success: '#16a34a',
-      danger: '#dc2626',
-      glow: 'rgba(37, 99, 235, 0.18)',
-      elevation: '0 14px 40px rgba(37, 99, 235, 0.16)',
-    },
-    typography: {
-      fontSans: '"Inter", "Outfit", sans-serif',
-      fontMono: '"JetBrains Mono", monospace',
-      headingWeight: '700',
-      bodyWeight: '500',
-    },
-    spacing: {
-      borderRadius: '28px',
-      padding: '24px',
-      cardPadding: '24px',
-    },
-    wording: {
-      dashboard: 'Flowboard',
-      missions: 'Initiatives',
-      focusScore: 'Momentum',
-      execute: 'Start Flow',
-      insight: 'AI Brief',
-      timeline: 'Daily Flow',
-      awareness: 'Reflection',
-      pilot: 'Guide Day',
-      neuralSync: 'Harmony: Connected',
-      tasks: 'Initiatives',
-      dailyGoal: 'Momentum Goal',
-      efficiency: 'Momentum',
-      activeMissions: 'Active Initiatives',
-      activeTasks: 'Active Initiatives',
-      activeFocus: 'Active Initiatives',
-      score: 'Momentum Score',
-      schedule: 'Daily Flow',
-      navigation: {
-        home: 'Flow',
-        tasks: 'Initiatives',
-        habits: 'Habits',
-        schedule: 'Rhythm',
-        analytics: 'Insights',
-        settings: 'Themes',
-      }
-    },
-    motion: {
-      transition: { duration: 0.32, ease: "easeOut" },
-      variants: {
-        container: {
-          hidden: { opacity: 0 },
-          show: {
-            opacity: 1,
-            transition: { staggerChildren: 0.06 }
-          }
-        },
-        item: {
-          hidden: { opacity: 0, y: 14, filter: "blur(6px)" },
-          show: { opacity: 1, y: 0, filter: "blur(0px)" }
-        }
-      },
-      hover: { scale: 1.015, y: -2 },
-      tap: { scale: 0.985 }
-    },
-  },
 };
 
 interface ThemeContextType {
@@ -571,7 +420,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       root.style.setProperty('--border-radius', theme.spacing.borderRadius);
     }
     
-    root.classList.remove('theme-elite', 'theme-simple', 'theme-minimal', 'theme-gamified', 'theme-cinematic', 'theme-aurora');
+    root.classList.remove('theme-elite', 'theme-simple', 'theme-minimal');
     root.classList.add(`theme-${themeType}`);
     
     // Set color scheme for browser UI
