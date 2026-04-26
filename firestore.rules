@@ -1,117 +1,176 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 0. Default Deny
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // --- SHARED HELPERS ---
     function isSignedIn() { return request.auth != null; }
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
-    function isEmailVerified() { return request.auth.token.email_verified == true; }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
-    function isUnchanged(field) { return incoming()[field] == existing()[field]; }
+    function isIsoString(value) {
+      return value is string
+        && value.size() >= 20
+        && value.matches('^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{3})?Z$');
+    }
 
-    // --- ENTITY VALIDATIONS ---
-    function isValidUser(data) {
-      return data.keys().hasAll(['email', 'created_at'])
-        && data.email is string && data.email.size() <= 256
-        && (data.get('role', 'user') == 'user') // Users can't self-promote
-        && data.created_at is string; // Or timestamp if using serverTimestamp
+    // Canonical users schema (client-visible)
+    function isValidUserCreate(data) {
+      return data.keys().hasOnly([
+          'email',
+          'subscription_plan',
+          'role',
+          'created_at',
+          'onboardingComplete',
+          'wakeTime',
+          'directive',
+          'lifeScore',
+          'streak',
+          'updated_at'
+        ])
+        && data.keys().hasAll(['email', 'subscription_plan', 'role', 'created_at'])
+        && data.email is string
+        && data.email.size() <= 256
+        && data.subscription_plan in ['free', 'trial', 'premium']
+        && data.role == 'user'
+        && isIsoString(data.created_at)
+        && (!('onboardingComplete' in data) || data.onboardingComplete is bool)
+        && (!('wakeTime' in data) || (data.wakeTime is string && data.wakeTime.size() <= 10))
+        && (!('directive' in data) || (data.directive is string && data.directive.size() <= 200))
+        && (!('lifeScore' in data) || data.lifeScore is number)
+        && (!('streak' in data) || data.streak is int)
+        && (!('updated_at' in data) || isIsoString(data.updated_at));
+    }
+
+    function isValidUserMutableFields(data) {
+      return (!('onboardingComplete' in data) || data.onboardingComplete is bool)
+        && (!('wakeTime' in data) || (data.wakeTime is string && data.wakeTime.size() <= 10))
+        && (!('directive' in data) || (data.directive is string && data.directive.size() <= 200))
+        && (!('lifeScore' in data) || data.lifeScore is number)
+        && (!('streak' in data) || data.streak is int);
     }
 
     function isValidTask(data) {
-      return data.keys().hasAll(['title', 'status', 'created_at'])
-        && data.title is string && data.title.size() <= 200
+      return data.keys().hasOnly([
+          'title', 'status', 'priority', 'deadline', 'duration', 'category',
+          'impact', 'urgency', 'urgency_score', 'importance', 'estimated_effort',
+          'impact_level', 'is_habit', 'streak', 'created_at', 'completed_at'
+        ])
+        && data.keys().hasAll(['title', 'status', 'priority', 'duration', 'category', 'impact', 'urgency', 'importance', 'is_habit', 'streak', 'created_at'])
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 200
         && data.status in ['pending', 'completed', 'overdue']
         && data.priority in ['low', 'medium', 'high']
-        && data.created_at is string;
+        && data.duration is number
+        && data.category is string && data.category.size() <= 100
+        && data.impact in ['low', 'moderate', 'high', 'critical']
+        && data.urgency is number
+        && (!('urgency_score' in data) || data.urgency_score is number)
+        && data.importance is number
+        && (!('estimated_effort' in data) || data.estimated_effort is number)
+        && (!('impact_level' in data) || data.impact_level is number)
+        && data.is_habit is bool
+        && data.streak is int
+        && isIsoString(data.created_at)
+        && (!('deadline' in data) || data.deadline == null || data.deadline is string)
+        && (!('completed_at' in data) || data.completed_at == null || isIsoString(data.completed_at));
     }
 
     function isValidHabit(data) {
-      return data.keys().hasAll(['title', 'created_at'])
-        && data.title is string && data.title.size() <= 200
-        && data.created_at is string;
+      return data.keys().hasOnly([
+          'title', 'description', 'frequency', 'goal_count', 'current_count',
+          'streak', 'category', 'created_at', 'last_completed_at'
+        ])
+        && data.keys().hasAll(['title', 'description', 'frequency', 'goal_count', 'current_count', 'streak', 'category', 'created_at'])
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+        && data.description is string && data.description.size() <= 1000
+        && data.frequency in ['daily', 'weekly']
+        && data.goal_count is int && data.goal_count >= 1
+        && data.current_count is int && data.current_count >= 0
+        && data.streak is int && data.streak >= 0
+        && data.category is string && data.category.size() <= 100
+        && isIsoString(data.created_at)
+        && (!('last_completed_at' in data) || data.last_completed_at == null || isIsoString(data.last_completed_at));
     }
 
-    // --- COLLECTION RULES ---
+    // Canonical payments schema (written via backend/admin only)
+    function isValidPayment(data) {
+      return data.keys().hasOnly([
+          'amount', 'currency', 'status', 'created_at', 'updated_at', 'razorpay_payment_id'
+        ])
+        && data.keys().hasAll(['amount', 'currency', 'status', 'created_at'])
+        && data.amount is number
+        && data.currency is string && data.currency.size() <= 10
+        && data.status in ['created', 'captured', 'failed', 'cancelled']
+        && isIsoString(data.created_at)
+        && (!('updated_at' in data) || isIsoString(data.updated_at))
+        && (!('razorpay_payment_id' in data) || (data.razorpay_payment_id is string && data.razorpay_payment_id.size() <= 128));
+    }
 
-    // /users/{userId}
     match /users/{userId} {
       allow get: if isOwner(userId) && isValidId(userId);
       allow list: if false;
-      
-      allow create: if isOwner(userId) && isValidId(userId) && isValidUser(incoming());
-      
-      allow update: if isOwner(userId) && isValidId(userId) && isValidUser(incoming()) && (
-        incoming().diff(existing()).affectedKeys().hasOnly(['lifeScore', 'streak', 'onboardingComplete', 'wakeTime', 'directive', 'subscription_plan'])
-        && isUnchanged('email')
-        && isUnchanged('role')
-        && isUnchanged('created_at')
-      );
 
-      // /users/{userId}/tasks/{taskId}
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserCreate(incoming());
+
+      allow update: if isOwner(userId) && isValidId(userId)
+        && existing().keys().hasAll(['email', 'subscription_plan', 'role', 'created_at'])
+        && incoming().keys().hasOnly([
+          'email', 'subscription_plan', 'role', 'created_at',
+          'onboardingComplete', 'wakeTime', 'directive', 'lifeScore', 'streak', 'updated_at'
+        ])
+        && incoming().email == existing().email
+        && incoming().subscription_plan == existing().subscription_plan
+        && incoming().role == existing().role
+        && incoming().created_at == existing().created_at
+        && incoming().diff(existing()).changedKeys().hasOnly([
+          'onboardingComplete', 'wakeTime', 'directive', 'lifeScore', 'streak'
+        ])
+        && isValidUserMutableFields(incoming());
+
       match /tasks/{taskId} {
         allow get, list: if isOwner(userId) && isValidId(userId);
-        
         allow create: if isOwner(userId) && isValidId(userId) && isValidId(taskId) && isValidTask(incoming());
-        
-        allow update: if isOwner(userId) && isValidId(userId) && isValidId(taskId) && isValidTask(incoming()) && (
-          // Action: Complete
-          (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'completed_at']) && incoming().status == 'completed') ||
-          // Action: Edit
-          (incoming().status == 'pending' && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'priority', 'deadline', 'duration', 'category', 'impact', 'urgency', 'importance', 'is_habit']))
-        );
-        
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(taskId)
+          && isValidTask(incoming())
+          && incoming().created_at == existing().created_at;
         allow delete: if isOwner(userId) && isValidId(userId) && isValidId(taskId);
       }
 
-      // /users/{userId}/habits/{habitId}
       match /habits/{habitId} {
         allow get, list: if isOwner(userId) && isValidId(userId);
-        
         allow create: if isOwner(userId) && isValidId(userId) && isValidId(habitId) && isValidHabit(incoming());
-        
-        allow update: if isOwner(userId) && isValidId(userId) && isValidId(habitId) && isValidHabit(incoming()) && (
-          // Action: Toggle completion
-          incoming().diff(existing()).affectedKeys().hasOnly(['last_completed_at', 'current_count', 'streak']) ||
-          // Action: Edit
-          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'frequency', 'goal_count', 'category'])
-        );
-        
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(habitId)
+          && isValidHabit(incoming())
+          && incoming().created_at == existing().created_at;
         allow delete: if isOwner(userId) && isValidId(userId) && isValidId(habitId);
       }
 
-      // /users/{userId}/motivation/state
       match /motivation/state {
         allow get: if isOwner(userId) && isValidId(userId);
         allow write: if isOwner(userId) && isValidId(userId);
       }
 
-      // /users/{userId}/daily_scores/{date}
       match /daily_scores/{date} {
         allow get, list: if isOwner(userId) && isValidId(userId);
         allow create, update: if isOwner(userId) && isValidId(userId);
       }
 
-      // /users/{userId}/reminder_logs/{logId}
       match /reminder_logs/{logId} {
         allow get, list: if isOwner(userId) && isValidId(userId);
         allow create: if isOwner(userId) && isValidId(userId) && isValidId(logId);
-        allow update: if isOwner(userId) && isValidId(userId) && isValidId(logId) && incoming().diff(existing()).affectedKeys().hasOnly(['action_taken']);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(logId)
+          && incoming().diff(existing()).affectedKeys().hasOnly(['action_taken']);
       }
 
-      // /users/{userId}/payments/{paymentId}
       match /payments/{paymentId} {
         allow get, list: if isOwner(userId) && isValidId(userId);
-        allow write: if isOwner(userId) && isValidId(userId) && isValidId(paymentId);
+        // Client writes are denied. Payments are written by backend/admin SDK paths.
+        allow create, update, delete: if false;
       }
     }
-    
-    // Connection test doc
+
     match /_connection_test_/init {
       allow get: if isSignedIn();
     }
