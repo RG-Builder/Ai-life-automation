@@ -2,15 +2,27 @@ import { useState, useEffect } from 'react';
 import { onSnapshot } from 'firebase/firestore';
 import { Habit, OperationType } from '../types';
 import { habitService } from '../services/habitService';
+import { demoService } from '../services/demoService';
 import { handleFirestoreError } from '../lib/firestoreUtils';
 
 export const useHabitsFirestore = (userId: string | undefined, setError: (err: string | null) => void) => {
-  const [habits, setHabits] = useState<Habit[]>([]);
+  const [habits, setHabits] = useState<Habit[]>(() => {
+    return userId ? [] : demoService.getHabits();
+  });
 
   useEffect(() => {
     if (!userId) {
-      setHabits([]);
-      return;
+      const handleDemoUpdate = () => {
+        setHabits(demoService.getHabits());
+      };
+      
+      window.addEventListener('demo-habits-updated', handleDemoUpdate);
+      window.addEventListener('storage', handleDemoUpdate);
+      
+      return () => {
+        window.removeEventListener('demo-habits-updated', handleDemoUpdate);
+        window.removeEventListener('storage', handleDemoUpdate);
+      };
     }
 
     const habitsQuery = habitService.getHabitsQuery(userId);

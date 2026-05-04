@@ -2,15 +2,27 @@ import { useState, useEffect } from 'react';
 import { onSnapshot } from 'firebase/firestore';
 import { Mission, OperationType } from '../types';
 import { taskService } from '../services/taskService';
+import { demoService } from '../services/demoService';
 import { handleFirestoreError } from '../lib/firestoreUtils';
 
 export const useTasksFirestore = (userId: string | undefined, setError: (err: string | null) => void) => {
-  const [tasks, setTasks] = useState<Mission[]>([]);
+  const [tasks, setTasks] = useState<Mission[]>(() => {
+    return userId ? [] : demoService.getTasks();
+  });
 
   useEffect(() => {
     if (!userId) {
-      setTasks([]);
-      return;
+      const handleDemoUpdate = () => {
+        setTasks(demoService.getTasks());
+      };
+      
+      window.addEventListener('demo-tasks-updated', handleDemoUpdate);
+      window.addEventListener('storage', handleDemoUpdate);
+      
+      return () => {
+        window.removeEventListener('demo-tasks-updated', handleDemoUpdate);
+        window.removeEventListener('storage', handleDemoUpdate);
+      };
     }
 
     const tasksQuery = taskService.getTasksQuery(userId);

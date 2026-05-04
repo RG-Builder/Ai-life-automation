@@ -1,6 +1,7 @@
 import { Mission, Habit } from '../types';
 import { taskService } from '../services/taskService';
 import { habitService } from '../services/habitService';
+import { demoService } from '../services/demoService';
 import { useAuth } from '../context/AuthContext';
 import { toDate } from '../lib/utils';
 import { APP_CONFIG } from '../config/app.config';
@@ -16,7 +17,10 @@ export const useAppActions = (
   const { user } = useAuth();
 
   const handleAddTask = async (task: Partial<Mission>) => {
-    if (!user) return;
+    if (!user) {
+      demoService.addTask(task);
+      return;
+    }
     try {
       await taskService.addTask(user.id.toString(), task);
     } catch (error: any) {
@@ -25,9 +29,22 @@ export const useAppActions = (
   };
 
   const handleCompleteTask = async (taskId: string) => {
-    if (!user) return;
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
+
+    if (!user) {
+      demoService.completeTask(taskId);
+      const newScore = lifeScore + APP_CONFIG.SCORING.TASK_COMPLETION_BONUS;
+      setUndoAction({
+        message: `"${task.title}" completed!`,
+        undo: () => {
+          demoService.undoComplete(taskId);
+          setUndoAction(null);
+        }
+      });
+      setTimeout(() => setUndoAction(null), 5000);
+      return;
+    }
 
     try {
       await taskService.completeTask(user.id.toString(), taskId);
@@ -49,7 +66,10 @@ export const useAppActions = (
   };
 
   const handleDeleteTask = async (taskId: string) => {
-    if (!user) return;
+    if (!user) {
+      demoService.deleteTask(taskId);
+      return;
+    }
     try {
       await taskService.deleteTask(user.id.toString(), taskId);
     } catch (error) {
@@ -58,7 +78,10 @@ export const useAppActions = (
   };
 
   const handleUpdateTask = async (taskId: string, updates: Partial<Mission>) => {
-    if (!user) return;
+    if (!user) {
+      demoService.updateTask(taskId, updates);
+      return;
+    }
     try {
       await taskService.updateTask(user.id.toString(), taskId, updates);
     } catch (error) {
@@ -67,7 +90,10 @@ export const useAppActions = (
   };
 
   const handleAddHabit = async (habit: Partial<Habit>) => {
-    if (!user) return;
+    if (!user) {
+      demoService.addHabit(habit);
+      return;
+    }
     try {
       await habitService.addHabit(user.id.toString(), habit);
     } catch (error: any) {
@@ -76,7 +102,10 @@ export const useAppActions = (
   };
 
   const handleUpdateHabit = async (habitId: string, updates: Partial<Habit>) => {
-    if (!user) return;
+    if (!user) {
+      demoService.updateHabit(habitId, updates);
+      return;
+    }
     try {
       await habitService.updateHabit(user.id.toString(), habitId, updates);
     } catch (error) {
@@ -85,12 +114,20 @@ export const useAppActions = (
   };
 
   const handleToggleHabit = async (habitId: string) => {
-    if (!user) return;
     const habit = habits.find(h => h.id === habitId);
     if (!habit) return;
 
     const today = new Date().toISOString().split('T')[0];
     const isCompletedToday = habit.last_completed_at ? toDate(habit.last_completed_at).toISOString().split('T')[0] === today : false;
+
+    if (!user) {
+      if (isCompletedToday) {
+        demoService.decrementHabit(habitId);
+      } else {
+        demoService.incrementHabit(habitId);
+      }
+      return;
+    }
 
     try {
       if (isCompletedToday) {
@@ -104,7 +141,10 @@ export const useAppActions = (
   };
 
   const handleDeleteHabit = async (habitId: string) => {
-    if (!user) return;
+    if (!user) {
+      demoService.deleteHabit(habitId);
+      return;
+    }
     try {
       await habitService.deleteHabit(user.id.toString(), habitId);
     } catch (error) {

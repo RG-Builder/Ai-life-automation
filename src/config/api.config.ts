@@ -1,4 +1,14 @@
-const UI_PROVIDER = (import.meta.env.VITE_AI_PROVIDER || 'gemini-direct').trim().toLowerCase();
+// Handle both Vite (browser) and Node.js (server) environments
+const getEnv = (key: string, defaultValue: string = ''): string => {
+  // Check if we're in a Vite environment (browser)
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    return import.meta.env[key] || defaultValue;
+  }
+  // Fallback to process.env for Node.js
+  return process.env[key] || defaultValue;
+};
+
+const UI_PROVIDER = (getEnv('VITE_AI_PROVIDER', 'gemini-direct') || 'gemini-direct').trim().toLowerCase();
 
 export const API_CONFIG = {
   ENDPOINTS: {
@@ -7,8 +17,8 @@ export const API_CONFIG = {
   AI: {
     PROVIDER: UI_PROVIDER,
     MODELS: {
-      PRIMARY: import.meta.env.VITE_GEMINI_PRIMARY_MODEL || 'gemini-2.0-flash',
-      FAST: import.meta.env.VITE_GEMINI_FAST_MODEL || 'gemini-2.0-flash',
+      PRIMARY: getEnv('VITE_GEMINI_PRIMARY_MODEL', 'gemini-2.0-flash'),
+      FAST: getEnv('VITE_GEMINI_FAST_MODEL', 'gemini-2.0-flash'),
     },
     FALLBACK_STATIC: "Next Action: Focus on your current priority.\n\nInsight: AI systems are temporarily limited, but your productivity doesn't have to be.",
     PROMPTS: {
